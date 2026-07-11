@@ -66,7 +66,17 @@ export async function getGithubProfile(username = undefined) {
     }
   `;
 
-  const data = await client.request(query, { login });
+  let data;
+  try {
+    data = await client.request(query, { login });
+  } catch (err) {
+    const status = err?.response?.status;
+    if (status === 401 || status === 403) {
+      return getGithubProfileWithRest(login);
+    }
+    throw err;
+  }
+
   const user = data.user;
   if (!user) throw Object.assign(new Error('GitHub user not found'), { status: 404 });
 
