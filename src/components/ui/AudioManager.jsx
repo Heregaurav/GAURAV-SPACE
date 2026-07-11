@@ -2,95 +2,168 @@ import { useEffect, useRef, useState } from 'react';
 
 export default function AudioManager({ phase }) {
   const [muted, setMuted] = useState(true);
-  const ctxRef = useRef(null);
-  const nodesRef = useRef({});
+  const [volume, setVolume] = useState(40);
+  const [showVolume, setShowVolume] = useState(false);
 
-  const createAmbient = (ctx) => {
-    // Deep space drone
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    const gain2 = ctx.createGain();
-    const masterGain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
+  const audioRef = useRef(null);
 
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(55, ctx.currentTime);
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(82.5, ctx.currentTime);
+  useEffect(() => {
+    const audio = new Audio('/audio/sunflower.mp3');
 
-    gain1.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain2.gain.setValueAtTime(0.15, ctx.currentTime);
-    masterGain.gain.setValueAtTime(0, ctx.currentTime);
+    audio.loop = true;
+    audio.volume = volume / 100;
+    audio.preload = 'auto';
 
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(200, ctx.currentTime);
+    audioRef.current = audio;
 
-    osc1.connect(gain1);
-    osc2.connect(gain2);
-    gain1.connect(filter);
-    gain2.connect(filter);
-    filter.connect(masterGain);
-    masterGain.connect(ctx.destination);
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, []);
 
-    osc1.start();
-    osc2.start();
+  useEffect(() => {
+    if (audioRef.current && !muted) {
+      audioRef.current.volume = volume / 100;
+    }
+  }, [volume, muted]);
 
-    // Slow frequency modulation
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.frequency.setValueAtTime(0.1, ctx.currentTime);
-    lfoGain.gain.setValueAtTime(5, ctx.currentTime);
-    lfo.connect(lfoGain);
-    lfoGain.connect(osc1.frequency);
-    lfo.start();
+  const fadeAudio = (targetVolume, duration = 1000) => {
+    const audio = audioRef.current;
 
-    return { masterGain, osc1, osc2, lfo };
+    if (!audio) return;
+
+    const startVolume = audio.volume;
+    const change = targetVolume - startVolume;
+    const start = performance.now();
+
+    const animate = (time) => {
+      const progress = Math.min((time - start) / duration, 1);
+
+      audio.volume = startVolume + change * progress;
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        audio.volume = targetVolume;
+
+        if (targetVolume === 0) {
+          audio.pause();
+        }
+      }
+    };
+
+    requestAnimationFrame(animate);
   };
 
-  const toggleMute = () => {
-    if (!ctxRef.current) {
-      ctxRef.current = new (window.AudioContext || window.webkitAudioContext)();
-      nodesRef.current = createAmbient(ctxRef.current);
-    }
-    const ctx = ctxRef.current;
-    const { masterGain } = nodesRef.current;
+  const toggleMute = async () => {
+    const audio = audioRef.current;
+
+    if (!audio) return;
 
     if (muted) {
-      masterGain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 1);
-      setMuted(false);
+      try {
+        audio.volume = 0;
+        await audio.play();
+        fadeAudio(volume / 100, 800);
+        setMuted(false);
+      } catch (err) {
+        console.error(err);
+      }
     } else {
-      masterGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+      fadeAudio(0, 600);
       setMuted(true);
     }
   };
 
   return (
-    <button
-      onClick={toggleMute}
+    <div
+      onMouseEnter={() => setShowVolume(true)}
+      onMouseLeave={() => setShowVolume(false)}
       style={{
         position: 'fixed',
         bottom: '30px',
         right: '30px',
         zIndex: 1000,
-        background: 'rgba(0,212,255,0.1)',
-        border: '1px solid rgba(0,212,255,0.3)',
-        borderRadius: '50%',
-        width: '50px',
-        height: '50px',
+
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'none',
-        fontSize: '18px',
-        transition: 'all 0.3s ease',
-        backdropFilter: 'blur(10px)',
+
+        background: 'rgba(0,0,0,0.35)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(0,212,255,0.25)',
+        borderRadius: '999px',
+
+        padding: '10px 14px',
+        overflow: 'hidden',
       }}
-      title={muted ? "Enable sound" : "Mute"}
-      onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,212,255,0.2)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,212,255,0.1)'}
     >
-      {muted ? '🔇' : '🔊'}
-    </button>
+      <button
+        onClick={toggleMute}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: '#00d4ff',
+          fontSize: '20px',
+          cursor: 'pointer',
+          width: '32px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        {muted ? '🔇' : '🔊'}
+      </button>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+
+          width: showVolume ? '170px' : '0px',
+          opacity: showVolume ? 1 : 0,
+
+          marginLeft: showVolume ? '12px' : '0px',
+
+          overflow: 'hidden',
+
+          transition:
+            'width 0.35s ease, opacity 0.25s ease, margin-left 0.35s ease',
+        }}
+      >
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={volume}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setVolume(v);
+
+            if (audioRef.current && !muted) {
+              audioRef.current.volume = v / 100;
+            }
+          }}
+          style={{
+            width: '120px',
+            accentColor: '#00d4ff',
+            cursor: 'pointer',
+          }}
+        />
+
+        <span
+          style={{
+            marginLeft: '10px',
+            color: '#00d4ff',
+            fontSize: '12px',
+            fontWeight: 500,
+            minWidth: '36px',
+            userSelect: 'none',
+          }}
+        >
+          {volume}%
+        </span>
+      </div>
+    </div>
   );
 }
