@@ -150,3 +150,12 @@ html, body {
   0% { transform: translateY(0) scale(1); opacity: 0.8; }
   100% { transform: translateY(-200px) scale(0); opacity: 0; }
 }
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

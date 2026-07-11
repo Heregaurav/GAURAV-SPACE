@@ -27,8 +27,8 @@ export default function ScrollSections() {
           <ProjectsSection />
           <CodingProfileSection />
           <TechnologiesSection />
-          <ExtracurricularsSection />
           <ExperienceSection />
+          <ExtracurricularsSection />
           <ConnectSection resumeHref="/resume.pdf" />
         </div>
       </div>

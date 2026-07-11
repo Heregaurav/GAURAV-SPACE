@@ -12,7 +12,7 @@ import MissionControl from './components/ui/MissionControl';
 import LandingScene from './scenes/LandingScene';
 import PlanetScene from './scenes/PlanetScene';
 import ScrollSections from './components/sections/ScrollSections';
-import { Home, Power, ArrowLeft, Satellite, Clock } from 'lucide-react';
+import { Power, ArrowLeft, Satellite, Clock } from 'lucide-react';
 
 // Warp transition overlay
 function WarpOverlay({ active }) {
@@ -414,61 +414,10 @@ export default function App() {
             >
               <Satellite size={14} /> MISSION CONTROL
             </button>
-
-            {/* Bottom floating control panel */}
-            <div style={{
-              position: 'absolute',
-              bottom: '20px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              zIndex: 50,
-              display: 'flex',
-              gap: '16px',
-              alignItems: 'center',
-              padding: '12px 18px',
-              background: 'linear-gradient(180deg, rgba(6,8,12,0.7), rgba(6,8,12,0.45))',
-              border: '1px solid rgba(0,212,255,0.06)',
-              borderRadius: '14px',
-              backdropFilter: 'blur(8px)',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
-              fontFamily: 'var(--font-mono)',
-              color: 'rgba(255,255,255,0.9)',
-              pointerEvents: 'auto'
-            }}>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'rgba(0,212,255,0.9)', boxShadow: '0 0 12px rgba(0,212,255,0.4)' }} />
-                <div style={{ fontSize: '13px', fontWeight: 700 }}>NAVIGATION</div>
-              </div>
-
-              <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,0.04)' }} />
-
-              <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <Home size={14} />
-                  <div style={{ fontSize: '13px', opacity: 0.9 }}>BASE</div>
-                </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <Satellite size={14} />
-                  <div style={{ fontSize: '13px', opacity: 0.9 }}>{activePlanet !== null ? `PLANET ${activePlanet + 1}` : 'DEEP SPACE'}</div>
-                </div>
-              </div>
-
-              <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,0.04)' }} />
-
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>ETA</div>
-                <div style={{ fontSize: '13px', fontWeight: 700 }}>{activePlanet !== null ? '00:42' : '∞'}</div>
-              </div>
-
-            </div>
           </>
         )}
-
-        {phase === 'contact' && (
-          <MissionControl onBack={() => setPhase('space')} />
-        )}
       </div>
-      </div>
+    </div>
 
       {/*
         SCROLL LAYER — only exists during 'landing'. The hero section above

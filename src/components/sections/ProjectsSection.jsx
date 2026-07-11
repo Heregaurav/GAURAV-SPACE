@@ -1,4 +1,4 @@
-import { ExternalLink, Code2, ShieldCheck, Rocket, Boxes } from 'lucide-react';
+import { ExternalLink, Code2, ShieldCheck, Rocket, Boxes , MessageCircle } from 'lucide-react';
 import SectionWrapper from './SectionWrapper';
 import { COLORS, FONT, glassPanel } from './theme';
 
@@ -65,6 +65,25 @@ const PROJECTS = [
     },
     featured: true,
   },
+  {
+  icon: MessageCircle ,
+  title: 'VOID',
+  tag: 'Anonymous Chat App',
+  description:
+    'A secure real-time anonymous chatting platform built with Socket.IO, enabling instant peer-to-peer conversations without requiring user identities. Features live messaging, room-based communication, responsive UI, and efficient WebSocket-based event handling for a seamless chat experience.',
+  stack: [
+    'React',
+    'Node.js',
+    'Express',
+    'Socket.IO',
+    'MongoDB',
+  ],
+  links: {
+    code: 'https://github.com/Heregaurav/VOID',
+    live: 'https://void25.vercel.app',
+  },
+  featured: true,
+},
 ];
 
 function ProjectCard({ project }) {

@@ -4,9 +4,12 @@ export default function cacheMiddleware(keyGenerator) {
   return async (req, res, next) => {
     try {
       const key = typeof keyGenerator === 'function' ? keyGenerator(req) : keyGenerator || req.originalUrl;
-      const cached = getCached(key);
-      if (cached) {
-        return res.json(cached);
+      const refreshRequested = req.query?.refresh === 'true' || req.query?.bustCache === 'true' || req.query?.noCache === 'true';
+      if (!refreshRequested) {
+        const cached = getCached(key);
+        if (cached) {
+          return res.json(cached);
+        }
       }
       // override res.json to cache the response
       const originalJson = res.json.bind(res);

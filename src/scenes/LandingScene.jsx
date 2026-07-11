@@ -63,55 +63,21 @@ export default function LandingScene({ onLaunch }) {
   // ── Phase sequencer ──────────────────────────────────────────────────
   const startLaunchSequence = () => {
     if (phase !== 'idle') return;
+    setPhase('launch');
 
-    setPhase('boarding');
     gsap.to(camera.position, {
-      x: 0.8, y: 2.2, z: 6.0,
-      duration: 2.4, ease: 'power2.inOut',
+      x: 2.4, y: 3.5, z: 8.5,
+      duration: 0.8,
+      ease: 'power2.out',
     });
 
-    // 2. HATCH CLOSE
-    setTimeout(() => {
-      setPhase('hatch');
-      gsap.to(camera.position, {
-        x: 1.8, y: 0.2, z: 6.5,
-        duration: 1.2, ease: 'power2.inOut',
-      });
-    }, 2600);
+    gsap.to(shipY, {
+      current: 4,
+      duration: 0.8,
+      ease: 'power2.in',
+    });
 
-    // 3. IGNITION
-    setTimeout(() => {
-      setPhase('ignition');
-      gsap.to(camera.position, {
-        x: 2.5, y: -0.2, z: 8.0,
-        duration: 1.5, ease: 'power2.out',
-      });
-    }, 4200);
-
-    // 4. LAUNCH
-    setTimeout(() => {
-      setPhase('launch');
-      gsap.to(camera.position, {
-        x: 1.5, y: 5.0, z: 12.0,
-        duration: 3.0, ease: 'power2.in',
-      });
-
-      gsap.to(targetX, {
-        current: 1.1,
-        duration: 2.0,
-        ease: 'power2.inOut'
-      });
-
-      gsap.to(shipY, {
-        current: 35,
-        duration: 3.2, ease: 'power3.in',
-      });
-    }, 6000);
-
-    // 5. WARP
-    setTimeout(() => {
-      if (onLaunch) onLaunch();
-    }, 9200);
+    if (onLaunch) onLaunch();
   };
 
   useFrame(() => {

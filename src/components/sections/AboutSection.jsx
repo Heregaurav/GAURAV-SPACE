@@ -24,12 +24,12 @@ export default function AboutSection() {
   ];
 
   const NOTES = [
-    { n: '01', text: 'Responsive product UI' },
-    { n: '02', text: 'End-to-end security' },
-    { n: '03', text: 'Cloud-native systems' },
-    { n: '04', text: 'AI-assisted workflows' },
-    { n: '05', text: 'Dance club, creative lead' },
-    { n: '06', text: 'Volleyball — strategy & teamwork' },
+    { text: 'Developer ' },
+    { text: 'Security Inclined' },
+    { text: 'DevOps' },
+    { text: 'AI-assisted workflows' },
+    { text: 'Leadership ' },
+    { text: 'Volleyball — strategy & teamwork' },
   ];
 
   const SKILLS = ['Software Engineering', 'Cybersecurity', 'DevOps', 'AI Applications'];
@@ -39,8 +39,8 @@ export default function AboutSection() {
       id="about"
       index="01"
       eyebrow="About Me"
-      title="The person behind the console"
-      description="A quick briefing before the deep dive."
+      title="A little about me"
+      description="More than projects and codev — a little about my journey, passions, and the person behind the screen:"
     >
       <style>{`
         @keyframes about2-appear {
@@ -116,7 +116,7 @@ export default function AboutSection() {
               marginBottom: '22px',
             }}
           >
-           Hi ,  Gaurav here  : 
+          Building meaningful software through curiosity, creativity, and continuous learning.
           </div>
 
           <h3
@@ -130,7 +130,7 @@ export default function AboutSection() {
               fontWeight: 600,
             }}
           >
-            Building secure, polished digital systems with cinematic motion.
+             Hi ,  Gaurav here  : 
           </h3>
 
           <div style={{ display: 'grid', gap: '20px', marginTop: '26px' }}>
@@ -143,10 +143,12 @@ export default function AboutSection() {
                 color: INK.dim,
               }}
             >
-              I'm an undergraduate in Electronics &amp; Communication Engineering
-              at IIIT Dharwad, with a minor in Cybersecurity. I design secure
-              product systems that pair modern web interfaces with cloud
-              orchestration and immersive motion.
+              I'm Gaurav Kumar, a final-year B.Tech student in Electronics and Communication Engineering at IIIT Dharwad,
+               where I'm also pursuing a Minor in Cybersecurity. My curiosity for technology gradually led me from electronics to software engineering,
+               where I discovered a passion for building secure, scalable applications and solving real-world problems.
+              I'm particularly interested in full-stack development, cybersecurity, AI, and problem solving. 
+              As a Top 5% learner on TryHackMe, I enjoy understanding how systems work, exploring vulnerabilities, and learning how to build more secure software.
+              I believe in continuous learning and love diving deep into topics that genuinely interest me.
             </p>
             <p
               style={{
@@ -157,10 +159,11 @@ export default function AboutSection() {
                 color: INK.dim,
               }}
             >
-              My work sits at the intersection of full-stack craft,
-              security-first engineering, and AI-enhanced product flow —
-              systems that feel premium, hold up under pressure, and stay out
-              of the user's way.
+
+              Beyond coding, I'm the Co-Lead of the Dynamight Dance Club at IIIT Dharwad, where I've helped organize events and lead our team in inter-college competitions.
+              I'm also a former Junior State-level Volleyball player and have represented my college at the Inter-IIIT Sports Meet, experiences that taught me the value of teamwork, leadership, and resilience.
+             imp Above all, I'm someone who enjoys learning, embracing challenges, and finding joy in the process of roving every day—both as a developer and as a person.
+
             </p>
           </div>
 
@@ -181,8 +184,7 @@ export default function AboutSection() {
                 color: INK.dim,
               }}
             >
-              Every product should feel deliberate — fast, resilient, and
-              quietly confident in how it handles the edge cases nobody sees.
+             Always learning, always building, and always excited for the next challenge.
             </p>
           </div>
 

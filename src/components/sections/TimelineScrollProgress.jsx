@@ -101,9 +101,9 @@ export function TimelineScrollProgressStyles() {
     <style>{`
       .scroll-progress-track {
         position: absolute;
-        top: 0;
+        top: 20px; /* start at the first dot center */
         bottom: 0;
-        left: 24px;
+        left: 20px; /* align with exp-dot center */
         width: 2px;
         pointer-events: none;
         z-index: 1;
@@ -111,7 +111,7 @@ export function TimelineScrollProgressStyles() {
 
       @media (max-width: 1024px) {
         .scroll-progress-track {
-          left: 16px;
+          left: 20px;
         }
       }
 

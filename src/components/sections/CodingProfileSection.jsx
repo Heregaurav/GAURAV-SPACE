@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Activity, Award, BarChart3, Code2, ExternalLink, Flame, GitBranch, Layers3, Sparkles, Target, Trophy, Zap } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Activity, Award, BarChart3, Code2, Flame, GitBranch, Layers3, RefreshCw, Sparkles, Target, Trophy, Zap } from 'lucide-react';
 import SectionWrapper from './SectionWrapper';
 import { COLORS, FONT, glassPanel } from './theme';
 
@@ -22,7 +22,7 @@ const fallbackProfile = {
   platforms: [
     { platform: 'LeetCode', stat: '410+', statLabel: 'Solved', sub: 'Live backend data', href: 'https://leetcode.com/yourgaurav', accent: '#00d4ff' },
     { platform: 'CodeChef', stat: '—', statLabel: 'Rating', sub: 'Live backend data', href: 'https://www.codechef.com/users/spidermango', accent: '#b44fff' },
-    { platform: 'GeeksforGeeks', stat: '—', statLabel: 'Solved', sub: 'Live backend data', href: 'https://auth.geeksforgeeks.org/user/gaurabkuma160a/practice/', accent: '#00ff88' },
+    { platform: 'GeeksforGeeks', stat: '—', statLabel: 'Solved', sub: 'Live backend data', href: 'https://www.geeksforgeeks.org/profile/gauravkuma160a?tab=activity', accent: '#00ff88' },
     { platform: 'GitHub', stat: '46+', statLabel: 'Repositories', sub: 'Live backend data', href: 'https://github.com/heregaurav', accent: '#00d4ff' },
   ],
   totals: [
@@ -35,39 +35,211 @@ const fallbackProfile = {
   current: { rating: '410 solved', weeklyContest: '—', rank: '—', date: new Date().toLocaleDateString('en-GB') },
 };
 
+// --- Detailed, GitHub/LeetCode-style contribution heatmap ------------------
+
+function toDateStr(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function buildWeeks(items) {
+  const dataMap = new Map(items.map((item) => [item.date, Number(item.count) || 0]));
+
+  const parsed = items.map((item) => new Date(item.date)).filter((d) => !isNaN(d));
+  const endDate = parsed.length ? new Date(Math.max(...parsed)) : new Date();
+  endDate.setHours(0, 0, 0, 0);
+
+  const startDate = new Date(endDate);
+  startDate.setDate(startDate.getDate() - 364); // one year back
+  startDate.setDate(startDate.getDate() - startDate.getDay()); // align to Sunday
+
+  const weeks = [];
+  const cursor = new Date(startDate);
+  while (cursor <= endDate) {
+    const week = [];
+    for (let d = 0; d < 7; d++) {
+      const dateStr = toDateStr(cursor);
+      const inRange = cursor <= endDate;
+      week.push({ date: dateStr, count: inRange ? dataMap.get(dateStr) || 0 : 0, inRange });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    weeks.push(week);
+  }
+  return weeks;
+}
+
+function computeStreaks(items) {
+  const sorted = [...items]
+    .filter((i) => Number(i.count) > 0)
+    .map((i) => i.date)
+    .sort();
+  if (!sorted.length) return { current: 0, max: 0 };
+
+  let max = 1;
+  let run = 1;
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = new Date(sorted[i - 1]);
+    const curr = new Date(sorted[i]);
+    const diffDays = Math.round((curr - prev) / 86400000);
+    if (diffDays === 1) {
+      run += 1;
+    } else {
+      max = Math.max(max, run);
+      run = 1;
+    }
+  }
+  max = Math.max(max, run);
+
+  // current streak: walk back from the most recent active date, must be
+  // today or yesterday to still count as "current"
+  const lastActive = new Date(sorted[sorted.length - 1]);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysSinceActive = Math.round((today - lastActive) / 86400000);
+
+  let current = 0;
+  if (daysSinceActive <= 1) {
+    current = 1;
+    for (let i = sorted.length - 1; i > 0; i--) {
+      const curr = new Date(sorted[i]);
+      const prev = new Date(sorted[i - 1]);
+      const diffDays = Math.round((curr - prev) / 86400000);
+      if (diffDays === 1) current += 1;
+      else break;
+    }
+  }
+
+  return { current, max };
+}
+
 function Heatmap({ data = [] }) {
   const items = Array.isArray(data) ? data : [];
-  const max = items.length ? Math.max(...items.map((item) => Number(item.count) || 0), 1) : 1;
+  const weeks = useMemo(() => buildWeeks(items), [items]);
+  const max = useMemo(() => Math.max(...items.map((i) => Number(i.count) || 0), 1), [items]);
+  const totalActivity = useMemo(() => items.reduce((sum, i) => sum + (Number(i.count) || 0), 0), [items]);
+  const activeDays = useMemo(() => items.filter((i) => Number(i.count) > 0).length, [items]);
+  const { current: currentStreak, max: maxStreak } = useMemo(() => computeStreaks(items), [items]);
+
+  function colorFor(count) {
+    if (!count) return 'rgba(255,255,255,0.045)';
+    const intensity = count / max;
+    if (intensity < 0.25) return 'rgba(0,212,255,0.28)';
+    if (intensity < 0.5) return 'rgba(0,212,255,0.5)';
+    if (intensity < 0.75) return 'rgba(0,212,255,0.72)';
+    return 'rgba(0,212,255,0.98)';
+  }
+
+  const monthLabels = [];
+  let lastMonth = null;
+  weeks.forEach((week, i) => {
+    const firstValid = week.find((d) => d.inRange) || week[0];
+    const month = new Date(firstValid.date).getMonth();
+    if (month !== lastMonth) {
+      monthLabels.push({ index: i, label: new Date(firstValid.date).toLocaleString('en-US', { month: 'short' }) });
+      lastMonth = month;
+    }
+  });
+
+  const dayLabels = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
+  const cell = 22;
+  const gap = 5;
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, minmax(0, 1fr))', gap: '4px' }}>
-        {items.map((item) => {
-          const count = Number(item.count) || 0;
-          const intensity = Math.min(0.95, count / max + 0.05);
-          return (
-            <div
-              key={item.date}
-              title={`${item.date}: ${count} solved`}
-              style={{
-                width: '100%',
-                aspectRatio: '1 / 1',
-                borderRadius: '4px',
-                background: `rgba(0, 212, 255, ${intensity})`,
-                boxShadow: intensity > 0.2 ? '0 0 8px rgba(0,212,255,0.12)' : 'none',
-              }}
-            />
-          );
-        })}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+        {[
+          { label: 'Total activity', value: totalActivity },
+          { label: 'Active days', value: activeDays },
+          { label: 'Current streak', value: `${currentStreak}d` },
+          { label: 'Longest streak', value: `${maxStreak}d` },
+        ].map((stat) => (
+          <div
+            key={stat.label}
+            style={{
+              flex: '1 1 130px',
+              padding: '10px 14px',
+              borderRadius: '12px',
+              background: 'rgba(255,255,255,0.03)',
+              border: `1px solid ${COLORS.line}`,
+            }}
+          >
+            <div style={{ fontFamily: FONT.mono, fontSize: '9px', letterSpacing: '1.2px', color: COLORS.textFaint, textTransform: 'uppercase' }}>
+              {stat.label}
+            </div>
+            <div style={{ fontFamily: FONT.display, fontSize: '18px', fontWeight: 900, color: COLORS.textPrimary, marginTop: '4px' }}>
+              {stat.value}
+            </div>
+          </div>
+        ))}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', color: COLORS.textFaint, fontFamily: FONT.mono, fontSize: '10px', letterSpacing: '1.2px', textTransform: 'uppercase' }}>
-        <span>Low</span>
-        <div style={{ display: 'flex', gap: '6px' }}>
-          {[0.2, 0.45, 0.7, 0.95].map((level) => (
-            <div key={level} style={{ width: '12px', height: '12px', borderRadius: '3px', background: `rgba(0, 212, 255, ${level})` }} />
+
+      <div style={{ display: 'flex', gap: '58px', overflowX: 'auto', paddingBottom: '18px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: `${gap}px`, paddingTop: '12px', flexShrink: 0, minWidth: '56px' }}>
+          {dayLabels.map((label, i) => (
+            <div
+              key={i}
+              style={{ height: `${cell}px`, lineHeight: `${cell}px`, fontFamily: FONT.mono, fontSize: '9px', color: COLORS.textFaint }}
+            >
+              {label}
+            </div>
           ))}
         </div>
-        <span>High</span>
+
+        <div style={{ flexShrink: 0 }}>
+          <div style={{ position: 'relative', height: '16px', marginBottom: '4px', width: `${weeks.length * (cell + gap)}px` }}>
+            {monthLabels.map((m) => (
+              <span
+                key={`${m.label}-${m.index}`}
+                style={{
+                  position: 'absolute',
+                  left: `${m.index * (cell + gap)}px`,
+                  fontFamily: FONT.mono,
+                  fontSize: '10px',
+                  color: COLORS.textFaint,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}
+              >
+                {m.label}
+              </span>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: `${gap}px` }}>
+            {weeks.map((week, wi) => (
+              <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: `${gap}px` }}>
+                {week.map((day) => (
+                  <div
+                    key={day.date}
+                    title={day.inRange ? `${day.count} activity on ${day.date}` : ''}
+                    style={{
+                      width: `${cell}px`,
+                      height: `${cell}px`,
+                      borderRadius: '3px',
+                      background: day.inRange ? colorFor(day.count) : 'transparent',
+                    }}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', marginTop: '14px', color: COLORS.textFaint, fontFamily: FONT.mono, fontSize: '10px', letterSpacing: '1.2px', textTransform: 'uppercase' }}>
+        <span>Less</span>
+        <div style={{ display: 'flex', gap: '4px' }}>
+          {[0, 0.28, 0.5, 0.72, 0.98].map((level) => (
+            <div
+              key={level}
+              style={{
+                width: `${cell}px`,
+                height: `${cell}px`,
+                borderRadius: '3px',
+                background: level === 0 ? 'rgba(255,255,255,0.045)' : `rgba(0,212,255,${level})`,
+              }}
+            />
+          ))}
+        </div>
+        <span>More</span>
       </div>
     </div>
   );
@@ -151,7 +323,7 @@ function normalizeProfile(payload) {
       stat: `${gfg.problems_solved ?? '—'}`,
       statLabel: 'Problems solved',
       sub: `${gfg.coding_score ?? '—'} score`,
-      href: `https://auth.geeksforgeeks.org/user/${gfg.username || 'gaurabkuma160a'}/practice/`,
+      href: `https://www.geeksforgeeks.org/profile/${gfg.username || 'gauravkuma160a'}?tab=activity`,
       accent: '#00ff88',
       details: [
         { label: 'Coding score', value: gfg.coding_score ?? '—' },
@@ -184,35 +356,42 @@ function normalizeProfile(payload) {
 export default function CodingProfileSection() {
   const [profile, setProfile] = useState(fallbackProfile);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function loadProfile({ refresh = false } = {}) {
+    try {
+      const url = refresh ? '/api/profile?refresh=true' : '/api/profile';
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Profile endpoint unavailable');
+      const data = await response.json();
+      setProfile(normalizeProfile(data));
+    } catch (error) {
+      setProfile(normalizeProfile(null));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadProfile() {
-      try {
-        const response = await fetch('/api/profile');
-        if (!response.ok) throw new Error('Profile endpoint unavailable');
-        const data = await response.json();
-        if (!cancelled) {
-          setProfile(normalizeProfile(data));
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setProfile(normalizeProfile(null));
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+    async function initialLoad() {
+      if (cancelled) return;
+      await loadProfile();
     }
 
-    loadProfile();
+    initialLoad();
 
     return () => {
       cancelled = true;
     };
   }, []);
+
+  async function refreshProfile() {
+    setRefreshing(true);
+    await loadProfile({ refresh: true });
+  }
 
   if (loading) {
     return (
@@ -221,11 +400,44 @@ export default function CodingProfileSection() {
         index="03"
         eyebrow="Track Record"
         title="Coding profiles"
-        description="Where the problem-solving actually happens — competitive programming and security CTFs."
-      >
-        <div style={{ ...glassPanel, padding: '32px', textAlign: 'center' }}>
-          Loading coding profile data...
-        </div>
+        description=" Problem-solving stats accross different Platforms :"
+      ><div
+  style={{
+    ...glassPanel,
+    padding: '50px 32px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '22px',
+    minHeight: '220px',
+  }}
+>
+  <div
+    style={{
+      width: '56px',
+      height: '56px',
+      border: `3px solid ${COLORS.line}`,
+      borderTop: `3px solid ${COLORS.neonBlue}`,
+      borderRadius: '50%',
+      animation: 'spin 1s linear infinite',
+      boxShadow: `0 0 18px ${COLORS.neonBlue}55`,
+    }}
+  />
+
+  <div
+    style={{
+      fontFamily: FONT.mono,
+      fontSize: '12px',
+      letterSpacing: '2px',
+      color: COLORS.textFaint,
+      textTransform: 'uppercase',
+    }}
+  >
+    Loading Coding Profiles...
+  </div>
+</div>
+
       </SectionWrapper>
     );
   }
@@ -237,7 +449,7 @@ export default function CodingProfileSection() {
         index="03"
         eyebrow="Track Record"
         title="Coding profiles"
-        description="Where the problem-solving actually happens — competitive programming and security CTFs."
+        description="Problem sovling stats."
       >
         <div style={{ ...glassPanel, padding: '32px', textAlign: 'center' }}>
           Unable to load coding profile data. Please try again later.
@@ -253,7 +465,6 @@ export default function CodingProfileSection() {
     { label: 'Repositories', value: profile.platforms?.find((p) => p.platform === 'GitHub')?.stat || '—', accent: '#00ff88', icon: Layers3 },
   ];
   const breakdownEntries = Object.entries(profile.solvedBreakdown || {});
-  const totalActivity = (profile.heatmap || []).reduce((sum, item) => sum + (Number(item.count) || 0), 0);
 
   return (
     <SectionWrapper
@@ -261,42 +472,64 @@ export default function CodingProfileSection() {
       index="03"
       eyebrow="Track Record"
       title="Coding profiles"
-      description="A premium view of your combined coding presence across LeetCode, CodeChef, GeeksforGeeks and GitHub."
+      description=" Problem-solving stats accross different Platforms : LeetCode, CodeChef and GeeksforGeeks as well as  GitHub."
     >
-      <div style={{ display: 'grid', gap: '18px' }}>
+      <div style={{ display: 'grid', gap: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={refreshProfile}
+            disabled={refreshing || loading}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 14px',
+              borderRadius: '999px',
+              border: `1px solid ${COLORS.line}`,
+              background: refreshing ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.04)',
+              color: COLORS.textPrimary,
+              fontFamily: FONT.mono,
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              cursor: refreshing || loading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            <RefreshCw size={14} style={{ transform: refreshing ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+            {refreshing ? 'Refreshing' : 'Refresh'}
+          </button>
+        </div>
         <div
           style={{
             ...glassPanel,
-            padding: '24px 24px 28px',
-            background: 'linear-gradient(135deg, rgba(0,212,255,0.12), rgba(180,79,255,0.08))',
-            border: '1px solid rgba(0,212,255,0.18)',
+            padding: '28px 28px 32px',
+            background: 'rgba(8, 12, 22, 0.35)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            boxShadow:
+              '0 10px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04)',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 10px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', fontFamily: FONT.mono, fontSize: '10px', letterSpacing: '1.4px', color: COLORS.textFaint, textTransform: 'uppercase' }}>
-                <Sparkles size={12} color="#00d4ff" />
-                Combined coding intelligence
+              <div style={{ fontFamily: FONT.display, fontSize: '26px', fontWeight: 900, color: COLORS.textPrimary, marginTop: '14px' }}>
+                Building confidence, one problem at a time.
               </div>
-              <div style={{ fontFamily: FONT.display, fontSize: '26px', fontWeight: 900, color: COLORS.textPrimary, marginTop: '12px' }}>
-                Track your problem solving with a clear, unified snapshot.
-              </div>
-              <div style={{ fontFamily: FONT.body, fontSize: '13px', color: COLORS.textDim, marginTop: '8px', maxWidth: '720px' }}>
-                Review your strongest platforms, total activity, and performance trends at a glance in one polished command center.
-              </div>
+
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: 'rgba(0,255,136,0.1)', color: '#7dffb4', fontFamily: FONT.mono, fontSize: '10px', letterSpacing: '1.4px', textTransform: 'uppercase', border: '1px solid rgba(0,255,136,0.18)' }}>
-              <Activity size={12} />
-              Live profile sync
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: 'rgba(182, 185, 184, 0.1)', color: '#747575', fontFamily: FONT.mono, fontSize: '10px', letterSpacing: '1.4px', textTransform: 'uppercase', border: '1px solid rgba(255, 255, 255, 0.18)' }}>
+        
+              Actively Coding
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '18px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginTop: '22px' }}>
             {summaryCards.map((card) => {
               const Icon = card.icon;
               return (
-                <div key={card.label} style={{ padding: '14px 16px', borderRadius: '14px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${COLORS.line}` }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div key={card.label} style={{ padding: '16px 18px', borderRadius: '14px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${COLORS.line}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                     <span style={{ fontFamily: FONT.mono, fontSize: '10px', letterSpacing: '1.4px', color: COLORS.textFaint, textTransform: 'uppercase' }}>{card.label}</span>
                     <Icon size={15} color={card.accent} />
                   </div>
@@ -307,117 +540,92 @@ export default function CodingProfileSection() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gap: '18px', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
-          <div style={{ ...glassPanel, padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <div style={{ fontFamily: FONT.display, fontSize: '19px', fontWeight: 900, color: COLORS.textPrimary }}>Combined contribution heatmap</div>
-                <div style={{ fontFamily: FONT.body, fontSize: '12px', color: COLORS.textDim, marginTop: '4px' }}>LeetCode, CodeChef and GFG activity blended into one signal.</div>
-              </div>
-              <div style={{ fontFamily: FONT.mono, fontSize: '10px', letterSpacing: '1.4px', color: COLORS.textFaint, textTransform: 'uppercase' }}>{totalActivity} total activity points</div>
+        <div style={{ ...glassPanel, padding: '28px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <div style={{ fontFamily: FONT.display, fontSize: '19px', fontWeight: 900, color: COLORS.textPrimary }}>Combined contribution heatmap</div>
+              <div style={{ fontFamily: FONT.body, fontSize: '12px', color: COLORS.textDim, marginTop: '4px' }}>LeetCode, CodeChef and GFG activity blended into one signal, past 52 weeks.</div>
             </div>
-            <Heatmap data={profile.heatmap} />
+          </div>
+          <Heatmap data={profile.heatmap} />
+        </div>
+
+        <div style={{ ...glassPanel, padding: '28px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div style={{ fontFamily: FONT.display, fontSize: '19px', fontWeight: 900, color: COLORS.textPrimary }}>Platform deep dive</div>
+            <div style={{ fontFamily: FONT.mono, fontSize: '10px', color: COLORS.textFaint, textTransform: 'uppercase', letterSpacing: '1.4px' }}>Live details</div>
           </div>
 
-          <div style={{ display: 'grid', gap: '18px' }}>
-            <div style={{ ...glassPanel, padding: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <div style={{ fontFamily: FONT.display, fontSize: '19px', fontWeight: 900, color: COLORS.textPrimary }}>Platform deep dive</div>
-                <div style={{ fontFamily: FONT.mono, fontSize: '10px', color: COLORS.textFaint, textTransform: 'uppercase', letterSpacing: '1.4px' }}>Live details</div>
-              </div>
-
-              <div style={{ display: 'grid', gap: '10px' }}>
-                {profile.platforms.map((platform) => {
-                  const Icon = platformIconMap[platform.platform] || Code2;
-                  return (
-                    <a
-                      key={platform.platform}
-                      href={platform.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        padding: '12px 14px',
-                        borderRadius: '14px',
-                        background: 'rgba(255,255,255,0.03)',
-                        border: `1px solid ${COLORS.line}`,
-                        textDecoration: 'none',
-                        color: 'inherit',
-                        transition: 'transform 0.2s ease, border-color 0.2s ease',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <Icon size={16} color={platform.accent} />
-                          <div>
-                            <div style={{ fontFamily: FONT.display, fontSize: '15px', fontWeight: 800, color: COLORS.textPrimary }}>{platform.platform}</div>
-                            <div style={{ fontFamily: FONT.mono, fontSize: '10px', letterSpacing: '1.2px', color: COLORS.textFaint, textTransform: 'uppercase' }}>{platform.statLabel}</div>
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontFamily: FONT.display, fontSize: '20px', fontWeight: 900, color: COLORS.textPrimary }}>{platform.stat}</div>
-                          <div style={{ fontFamily: FONT.body, fontSize: '11px', color: COLORS.textDim }}>{platform.sub}</div>
-                        </div>
+          <div style={{ display: 'grid', gap: '12px', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
+            {profile.platforms.map((platform) => {
+              const Icon = platformIconMap[platform.platform] || Code2;
+              return (
+                <a
+                  key={platform.platform}
+                  href={platform.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    padding: '14px 16px',
+                    borderRadius: '14px',
+                    background: 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${COLORS.line}`,
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    transition: 'transform 0.2s ease, border-color 0.2s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Icon size={16} color={platform.accent} />
+                      <div>
+                        <div style={{ fontFamily: FONT.display, fontSize: '15px', fontWeight: 800, color: COLORS.textPrimary }}>{platform.platform}</div>
+                        <div style={{ fontFamily: FONT.mono, fontSize: '10px', letterSpacing: '1.2px', color: COLORS.textFaint, textTransform: 'uppercase' }}>{platform.statLabel}</div>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))', gap: '8px', marginTop: '10px' }}>
-                        {(platform.details || []).map((detail) => (
-                          <div key={detail.label} style={{ padding: '8px 10px', borderRadius: '10px', background: 'rgba(255,255,255,0.025)', border: `1px solid ${COLORS.line}` }}>
-                            <div style={{ fontFamily: FONT.mono, fontSize: '9px', letterSpacing: '1.2px', color: COLORS.textFaint, textTransform: 'uppercase', marginBottom: '4px' }}>{detail.label}</div>
-                            <div style={{ fontFamily: FONT.display, fontSize: '13px', fontWeight: 800, color: COLORS.textPrimary }}>{formatMetric(detail.value)}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </a>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div style={{ ...glassPanel, padding: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--neon-blue)' }} />
-                <div style={{ fontFamily: FONT.display, fontSize: '19px', fontWeight: 900, color: COLORS.textPrimary }}>Profile snapshot</div>
-              </div>
-              <div style={{ display: 'grid', gap: '12px' }}>
-                {[
-                  { label: 'Current rating', value: profile.current.rating },
-                  { label: 'Weekly contest', value: profile.current.weeklyContest },
-                  { label: 'Rank', value: profile.current.rank },
-                  { label: 'Updated', value: profile.current.date },
-                ].map((row) => (
-                  <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', paddingBottom: '8px', borderBottom: `1px solid ${COLORS.line}` }}>
-                    <span style={{ fontFamily: FONT.mono, fontSize: '10px', letterSpacing: '1.4px', color: COLORS.textFaint, textTransform: 'uppercase' }}>{row.label}</span>
-                    <span style={{ fontFamily: FONT.display, fontSize: '16px', fontWeight: 800, color: COLORS.textPrimary }}>{formatMetric(row.value)}</span>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontFamily: FONT.display, fontSize: '20px', fontWeight: 900, color: COLORS.textPrimary }}>{platform.stat}</div>
+                      <div style={{ fontFamily: FONT.body, fontSize: '11px', color: COLORS.textDim }}>{platform.sub}</div>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))', gap: '8px', marginTop: '12px' }}>
+                    {(platform.details || []).map((detail) => (
+                      <div key={detail.label} style={{ padding: '8px 10px', borderRadius: '10px', background: 'rgba(255,255,255,0.025)', border: `1px solid ${COLORS.line}` }}>
+                        <div style={{ fontFamily: FONT.mono, fontSize: '9px', letterSpacing: '1.2px', color: COLORS.textFaint, textTransform: 'uppercase', marginBottom: '4px' }}>{detail.label}</div>
+                        <div style={{ fontFamily: FONT.display, fontSize: '13px', fontWeight: 800, color: COLORS.textPrimary }}>{formatMetric(detail.value)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </a>
+              );
+            })}
           </div>
         </div>
 
-        <div style={{ display: 'grid', gap: '18px', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
-          <div style={{ ...glassPanel, padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+          <div style={{ ...glassPanel, padding: '28px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
               <BarChart3 size={16} color="#00d4ff" />
               <div style={{ fontFamily: FONT.display, fontSize: '19px', fontWeight: 900, color: COLORS.textPrimary }}>Solved breakdown</div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px' }}>
               {breakdownEntries.map(([level, value]) => (
-                <div key={level} style={{ padding: '14px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: `1px solid ${COLORS.line}` }}>
+                <div key={level} style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: `1px solid ${COLORS.line}` }}>
                   <div style={{ fontFamily: FONT.mono, fontSize: '10px', letterSpacing: '1.4px', color: COLORS.textFaint, textTransform: 'uppercase' }}>{level}</div>
-                  <div style={{ fontFamily: FONT.display, fontSize: '24px', fontWeight: 900, color: COLORS.textPrimary, marginTop: '6px' }}>{formatMetric(value)}</div>
+                  <div style={{ fontFamily: FONT.display, fontSize: '24px', fontWeight: 900, color: COLORS.textPrimary, marginTop: '8px' }}>{formatMetric(value)}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div style={{ ...glassPanel, padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+          <div style={{ ...glassPanel, padding: '28px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
               <Award size={16} color="#b44fff" />
               <div style={{ fontFamily: FONT.display, fontSize: '19px', fontWeight: 900, color: COLORS.textPrimary }}>Overall performance</div>
             </div>
-            <div style={{ display: 'grid', gap: '10px' }}>
+            <div style={{ display: 'grid', gap: '12px' }}>
               {profile.totals.map((item) => (
-                <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: `1px solid ${COLORS.line}` }}>
+                <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: `1px solid ${COLORS.line}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {(() => {
                       const Icon = totalIconMap[item.icon] || BarChart3;

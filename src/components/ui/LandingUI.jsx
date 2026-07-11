@@ -124,9 +124,8 @@ export default function LandingUI({ onLaunch, onResume, onContact }) {
   }, []);
 
   const stats = [
-    { label: 'Projects', value: '15+' },
     { label: 'Tryhackme', value: 'Top5%' },
-    { label: 'DSA', value: '1000+' },
+    { label: 'DSA', value: '800+' },
     { label: 'GPA', value: '8.5' },
   ];
 
@@ -431,25 +430,7 @@ export default function LandingUI({ onLaunch, onResume, onContact }) {
           letterSpacing: '2px',
           color: 'rgba(255,255,255,0.3)',
         }}>
-          {['GITHUB', 'LINKEDIN', 'EMAIL'].map((s, i) => (
-            <a key={i} href="#" style={{
-              color: 'rgba(255,255,255,0.3)',
-              textDecoration: 'none',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.color = 'var(--neon-blue, #00d4ff)';
-              e.currentTarget.style.textShadow = '0 0 8px rgba(0,212,255,0.5)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.color = 'rgba(255,255,255,0.3)';
-              e.currentTarget.style.textShadow = 'none';
-            }}
-            >
-              {s}
-            </a>
-          ))}
+
         </div>
       </div>
 
