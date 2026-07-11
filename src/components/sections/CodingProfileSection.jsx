@@ -358,9 +358,11 @@ export default function CodingProfileSection() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
   async function loadProfile({ refresh = false } = {}) {
     try {
-      const url = refresh ? '/api/profile?refresh=true' : '/api/profile';
+      const url = `${API_BASE}/api/profile${refresh ? '?refresh=true' : ''}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Profile endpoint unavailable');
       const data = await response.json();
