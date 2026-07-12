@@ -10,9 +10,8 @@ const ITEMS = [
     subtitle: "Building teams that build things",
     frontColor: "#8B5CF6",
     details: [
-      "Led multiple hackathon & college project teams.",
-      "Delegated tasks based on strengths.",
-      "Managed timelines under tight deadlines.",
+      "Led the college Dance club ,learnt alot ",
+      "Led multiple college project ,",
       "Collaborated across design, frontend & backend.",
       "Focused on ownership, communication & execution.",
     ],

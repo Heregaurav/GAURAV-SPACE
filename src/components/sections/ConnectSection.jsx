@@ -43,9 +43,9 @@ const CONTACT_EMAIL = 'gauravkumar0123xyz@gmail.com';
 
 const SOCIALS = [
   { icon: GitHubIcon, label: 'GitHub', href: 'https://github.com/heregaurav', color: '#ffffff', glow: 'rgba(255,255,255,0.35)' },
-  { icon: LinkedInIcon, label: 'LinkedIn', href: 'https://linkedin.com/in/', color: '#4db8ff', glow: 'rgba(10,102,194,0.45)' },
-  { icon: InstagramIcon, label: 'Instagram', href: 'https://instagram.com/heregauravv', color: '#e1306c', glow: 'rgba(225,48,108,0.4)' },
-  { icon: XIcon, label: 'X (Twitter)', href: 'https://x.com/yourgaurav', color: '#ffffff', glow: 'rgba(255,255,255,0.35)' },
+  { icon: LinkedInIcon, label: 'LinkedIn', href: 'https://www.linkedin.com/in/gaurav-kumar-182710329/', color: '#4db8ff', glow: 'rgba(10,102,194,0.45)' },
+  { icon: XIcon, label: 'X (Twitter)', href: 'https://x.com/GauravKuma5869', color: '#ffffff', glow: 'rgba(255,255,255,0.35)' },
+   { icon: InstagramIcon, label: 'Instagram', href: 'https://instagram.com/heregauravv', color: '#e1306c', glow: 'rgba(225,48,108,0.4)' },
   { icon: Mail, label: 'Email', href: `mailto:${CONTACT_EMAIL}`, color: '#00d4ff', glow: 'rgba(0,212,255,0.4)' },
 ];
 

@@ -57,20 +57,6 @@ export default function SectionWrapper({
       }}
     >
       {/* faint corner index — informative: this IS a numbered journey through the profile */}
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute',
-          top: '48px',
-          right: 'clamp(24px, 7vw, 90px)',
-          fontFamily: FONT.mono,
-          fontSize: '13px',
-          color: COLORS.textFaint,
-          letterSpacing: '2px',
-        }}
-      >
-        {index}
-      </div>
 
       <div
         data-reveal

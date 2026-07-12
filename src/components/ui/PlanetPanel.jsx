@@ -5,7 +5,7 @@ const PLANET_DATA = {
   webdev: {
     title: 'WEB DEVELOPMENT',
     subtitle: 'Full Stack Development',
-    color: '#00d4ff',
+    color: '#adf1ff',
     icon: '⚡',
     description:
       'Building modern full-stack web applications with scalable backend architectures, real-time communication, and cloud deployment.',
@@ -24,15 +24,15 @@ const PLANET_DATA = {
         link: '#',
       },
       {
-        name: 'Real-time Discussions',
-        desc: 'Interactive discussions using WebSockets',
+        name: 'Anonymous chat',
+        desc: 'Chat anonymously using WebSockets',
         tech: ['Socket.IO', 'Express', 'React'],
         link: '#',
       },
       {
-        name: 'AI Reading Features',
-        desc: 'Summaries and key-point extraction',
-        tech: ['React', 'Node.js', 'AI'],
+        name: 'Tracely AI',
+        desc: 'Showed the vulnerabilites  effectively ',
+        tech: ['React', 'Node.js', 'ML'],
         link: '#',
       },
     ],
@@ -41,7 +41,7 @@ const PLANET_DATA = {
   cybersec: {
     title: 'CYBERSECURITY',
     subtitle: 'Security & Threat Detection',
-    color: '#00ff88',
+    color: '#b6ffdd',
     icon: '🛡️',
     description:
       'Exploring offensive and defensive security through web security, network analysis, behavioral analytics, and AI-driven threat detection.',
@@ -77,9 +77,9 @@ const PLANET_DATA = {
   },
 
   cloud: {
-    title: 'CLOUD & DEVOPS',
+    title: 'DEVOPS',
     subtitle: 'Infrastructure & Deployment',
-    color: '#b44fff',
+    color: '#e4c1ff',
     icon: '☁️',
     description:
       'Deploying scalable applications using containers, Kubernetes, AWS, and modern DevOps practices.',
@@ -116,7 +116,7 @@ const PLANET_DATA = {
   academics: {
     title: 'ACADEMICS',
     subtitle: 'ECE + Cybersecurity',
-    color: '#ff6b35',
+    color: '#d8957d',
     icon: '🎓',
     description:
       'Electronics & Communication Engineering undergraduate with a Minor in Cybersecurity, combining software engineering with secure system design.',
@@ -153,7 +153,7 @@ const PLANET_DATA = {
   leadership: {
     title: 'LEADERSHIP',
     subtitle: 'Leadership & Extracurriculars',
-    color: '#ffd700',
+    color: '#e95555',
     icon: '🌟',
     description:
       'Leading student communities, organizing technical events, and contributing to campus activities alongside competitive sports.',
@@ -322,7 +322,7 @@ export default function PlanetPanel({ planetIndex, onClose }) {
       <div style={{ height: '1px', background: `linear-gradient(90deg, ${data.color}44, transparent)`, marginBottom: '20px' }} />
 
       {/* Skills */}
-      <div style={{ marginBottom: '24px' }}>
+      {/* <div style={{ marginBottom: '24px' }}>
         <h3 style={{
           fontFamily: 'var(--font-mono)',
           fontSize: '10px',
@@ -335,7 +335,7 @@ export default function PlanetPanel({ planetIndex, onClose }) {
         {data.skills.map((skill, i) => (
           <SkillBar key={skill.name} name={skill.name} level={skill.level} color={data.color} delay={i * 0.1} />
         ))}
-      </div>
+      </div> */}
 
       {/* Divider */}
       <div style={{ height: '1px', background: `linear-gradient(90deg, ${data.color}44, transparent)`, marginBottom: '20px' }} />

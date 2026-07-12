@@ -19,7 +19,7 @@ export default function AboutSection() {
   const FACTS = [
     { icon: GraduationCap, label: 'Institute', value: 'IIIT Dharwad', pos: { x: 350, y: 90 }, anchor: 'top' },
     { icon: MapPin, label: 'Base', value: 'India', pos: { x: 520, y: 250 }, anchor: 'right' },
-    { icon: Terminal, label: 'Focus', value: 'Full-Stack · Cyber Sec', pos: { x: 370, y: 460 }, anchor: 'bottom' },
+    { icon: Terminal, label: 'Focus', value: 'Software Engineering  Cybersecurity', pos: { x: 370, y: 460 }, anchor: 'bottom' },
     { icon: Rocket, label: 'Driven by', value: 'Curiosity to build', pos: { x: 180, y: 270 }, anchor: 'left' },
   ];
 
@@ -40,7 +40,7 @@ export default function AboutSection() {
       index="01"
       eyebrow="About Me"
       title="A little about me"
-      description="More than projects and codev — a little about my journey, passions, and the person behind the screen:"
+      description="More than projects and codev — a little about my journey   ,   passions  and hobbies  : the person behind the screen:"
     >
       <style>{`
         @keyframes about2-appear {
@@ -143,7 +143,7 @@ export default function AboutSection() {
                 color: INK.dim,
               }}
             >
-              I'm Gaurav Kumar, a final-year B.Tech student in Electronics and Communication Engineering at IIIT Dharwad,
+               I am a final-year  B.Tech student in Electronics and Communication Engineering at IIIT Dharwad,
                where I'm also pursuing a Minor in Cybersecurity. My curiosity for technology gradually led me from electronics to software engineering,
                where I discovered a passion for building secure, scalable applications and solving real-world problems.
               I'm particularly interested in full-stack development, cybersecurity, AI, and problem solving. 
@@ -255,137 +255,409 @@ export default function AboutSection() {
               boxShadow: 'none',
             }}
           >
-            <svg
-              viewBox="0 0 700 520"
-              width="100%"
-              height="auto"
-              style={{ display: 'block', overflow: 'visible' }}
-            >
-              <defs>
-                <path id="flightPath" d={PATH_D} />
-                <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
-                  <feGaussianBlur stdDeviation="3.2" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
+          <svg
+                viewBox="0 0 700 520"
+                width="100%"
+                height="auto"
+                style={{
+                  display: "block",
+                  overflow: "visible",
+                }}
+              >
+                <defs>
+                  <path id="flightPath" d={PATH_D} />
 
-              {/* faint concentric backdrop, radar-style */}
-              {[240, 180, 120].map((r) => (
+                  <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor={ACCENT} stopOpacity="0.2" />
+                    <stop offset="50%" stopColor={ACCENT} stopOpacity="0.9" />
+                    <stop offset="100%" stopColor={ACCENT} stopOpacity="0.2" />
+                  </linearGradient>
+
+                  <radialGradient id="bgGlow">
+                    <stop offset="0%" stopColor={ACCENT} stopOpacity="0.08" />
+                    <stop offset="100%" stopColor="transparent" />
+                  </radialGradient>
+
+                  <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+                    <feGaussianBlur stdDeviation="4" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+
+                {/* Background glow */}
                 <circle
-                  key={r}
                   cx="350"
-                  cy="270"
-                  r={r}
-                  fill="none"
-                  stroke="rgba(255,255,255,0.05)"
-                  strokeWidth="1"
+                  cy="260"
+                  r="260"
+                  fill="url(#bgGlow)"
                 />
-              ))}
 
-              {/* static outline of the path */}
-              <path d={PATH_D} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="1.25" />
-
-              {/* vertex markers */}
-              {FACTS.map((f) => (
-                <g key={f.label}>
-                  <circle cx={f.pos.x} cy={f.pos.y} r="4" fill={ACCENT} />
+                {/* Radar rings */}
+                {[70, 120, 170, 220, 270].map((r) => (
                   <circle
-                    cx={f.pos.x}
-                    cy={f.pos.y}
-                    r="10"
+                    key={r}
+                    cx="350"
+                    cy="260"
+                    r={r}
                     fill="none"
-                    stroke={ACCENT}
+                    stroke="rgba(255,255,255,.05)"
                     strokeWidth="1"
-                    opacity="0.5"
-                    style={{
-                      transformOrigin: `${f.pos.x}px ${f.pos.y}px`,
-                      animation: 'about2-vertex-pulse 3.2s ease-in-out infinite',
-                      animationDelay: `${f.pos.x % 5 * 0.2}s`,
-                    }}
                   />
-                </g>
-              ))}
+                ))}
 
-              {/* traveling comet with fading trail, looping the quadrilateral forever */}
-              {[0, 0.09, 0.18, 0.28, 0.4].map((delay, i) => (
+                {/* Crosshair */}
+                <line
+                  x1="350"
+                  y1="0"
+                  x2="350"
+                  y2="520"
+                  stroke="rgba(255,255,255,.04)"
+                />
+
+                <line
+                  x1="0"
+                  y1="260"
+                  x2="700"
+                  y2="260"
+                  stroke="rgba(255,255,255,.04)"
+                />
+
+                {/* Scan Ring */}
                 <circle
-                  key={i}
-                  r={i === 0 ? 5 : 5 - i}
-                  fill={ACCENT}
-                  opacity={1 - i * 0.2}
-                  filter={i === 0 ? 'url(#softGlow)' : undefined}
+                  cx="350"
+                  cy="260"
+                  r="120"
+                  fill="none"
+                  stroke={ACCENT}
+                  opacity=".15"
+                  strokeWidth="1"
                 >
-                  <animateMotion dur="7s" begin={`${delay}s`} repeatCount="indefinite" rotate="auto">
-                    <mpath href="#flightPath" />
-                  </animateMotion>
+                  <animate
+                    attributeName="r"
+                    values="80;250"
+                    dur="5s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values=".35;0"
+                    dur="5s"
+                    repeatCount="indefinite"
+                  />
                 </circle>
-              ))}
 
-              {/* fact labels, locked to the path's coordinate space via foreignObject */}
-              {FACTS.map(({ icon: Icon, label, value, pos, anchor }) => {
-                const w = 160, h = 74;
-                let x = pos.x - w / 2, y = pos.y - h - 14;
-                if (anchor === 'right') { x = pos.x + 16; y = pos.y - h / 2; }
-                if (anchor === 'left') { x = pos.x - w - 16; y = pos.y - h / 2; }
-                if (anchor === 'bottom') { y = pos.y + 16; }
-                return (
-                  <foreignObject key={label} x={x} y={y} width={w} height={h}>
-                    <div
-                      style={{
-                        fontFamily: FONT.body,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px',
-                        padding: '2px 4px',
-                      }}
+                {/* Decorative stars */}
+                {[
+                  [60, 80],
+                  [90, 160],
+                  [620, 100],
+                  [610, 390],
+                  [120, 450],
+                  [520, 430],
+                  [330, 40],
+                  [450, 70],
+                  [170, 280],
+                  [640, 250],
+                ].map(([x, y], i) => (
+                  <circle
+                    key={i}
+                    cx={x}
+                    cy={y}
+                    r="1.5"
+                    fill="white"
+                    opacity=".4"
+                  >
+                    <animate
+                      attributeName="opacity"
+                      values=".2;.8;.2"
+                      dur={`${2 + i * .4}s`}
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                ))}
+
+                {/* Path */}
+                <path
+                  d={PATH_D}
+                  fill="none"
+                  stroke="url(#pathGradient)"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+
+                {/* Vertices */}
+                {FACTS.map((f) => (
+                  <g key={f.label}>
+                    <circle
+                      cx={f.pos.x}
+                      cy={f.pos.y}
+                      r="18"
+                      fill={ACCENT}
+                      opacity=".08"
+                    />
+
+                    <circle
+                      cx={f.pos.x}
+                      cy={f.pos.y}
+                      r="10"
+                      fill="none"
+                      stroke={ACCENT}
+                      strokeWidth="1"
+                      opacity=".4"
+                    />
+
+                    <circle
+                      cx={f.pos.x}
+                      cy={f.pos.y}
+                      r="5"
+                      fill={ACCENT}
+                      filter="url(#softGlow)"
+                    />
+
+                    <circle
+                      cx={f.pos.x}
+                      cy={f.pos.y}
+                      r="16"
+                      fill="none"
+                      stroke={ACCENT}
+                      opacity=".5"
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Icon size={13} color={INK.faint} />
-                        <span
+                      <animate
+                        attributeName="r"
+                        values="10;18;10"
+                        dur="3.5s"
+                        repeatCount="indefinite"
+                      />
+                      <animate
+                        attributeName="opacity"
+                        values=".7;0;.7"
+                        dur="3.5s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                  </g>
+                ))}
+
+                {/* Comet */}
+                {[0, .06, .12, .18, .24].map((delay, i) => (
+                  <circle
+                    key={i}
+                    r={6 - i}
+                    fill={ACCENT}
+                    opacity={1 - i * .18}
+                    filter="url(#softGlow)"
+                  >
+                    <animateMotion
+                      dur="7s"
+                      begin={`${delay}s`}
+                      repeatCount="indefinite"
+                      rotate="auto"
+                    >
+                      <mpath href="#flightPath" />
+                    </animateMotion>
+                  </circle>
+                ))}
+
+                {/* Labels */}
+                {FACTS.map(({ icon: Icon, label, value, pos, anchor }) => {
+                  const w = 180;
+                  const h = 82;
+
+                  let x = pos.x - w / 2;
+                  let y = pos.y - h - 20;
+
+                  if (anchor === "left") {
+                    x = pos.x - w - 18;
+                    y = pos.y - h / 2;
+                  }
+
+                  if (anchor === "right") {
+                    x = pos.x + 18;
+                    y = pos.y - h / 2;
+                  }
+
+                  if (anchor === "bottom") {
+                    y = pos.y + 18;
+                  }
+
+                  return (
+                    <g key={label}>
+                      <line
+                        x1={pos.x}
+                        y1={pos.y}
+                        x2={x + w / 2}
+                        y2={y + h / 2}
+                        stroke={ACCENT}
+                        opacity=".18"
+                      />
+
+                      <foreignObject
+                        x={x}
+                        y={y}
+                        width={w}
+                        height={h}
+                      >
+                        <div
                           style={{
-                            fontFamily: FONT.mono,
-                            fontSize: '10.5px',
-                            letterSpacing: '1.2px',
-                            textTransform: 'uppercase',
-                            color: INK.faint,
+                            backdropFilter: "blur(18px)",
+                            WebkitBackdropFilter: "blur(18px)",
+                            background: "rgba(255,255,255,.03)",
+                            border: `1px solid ${INK.panelBorder}`,
+                            borderRadius: "16px",
+                            padding: "14px",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                            gap: "8px",
+                            height: "100%",
                           }}
                         >
-                          {label}
-                        </span>
-                      </div>
-                      <span
-                        style={{
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          color: COLORS.textPrimary,
-                          lineHeight: 1.3,
-                        }}
-                      >
-                        {value}
-                      </span>
-                    </div>
-                  </foreignObject>
-                );
-              })}
-            </svg>
-          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
+                            <Icon
+                              size={14}
+                              color={ACCENT}
+                            />
 
-          <div
-            style={{
-              ...glassPanel,
-              padding: '26px 28px',
-              background: INK.panelBg,
-              border: `1px solid ${INK.panelBorder}`,
-              backdropFilter: 'blur(24px)',
-              WebkitBackdropFilter: 'blur(24px)',
-              boxShadow: 'none',
-            }}
-          >
-            
-          </div>
+                            <span
+                              style={{
+                                fontFamily: FONT.mono,
+                                fontSize: "10px",
+                                letterSpacing: "1.4px",
+                                padding:'4px',
+                                color: INK.faint,
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              {label}
+                            </span>
+                          </div>
+
+                          <div
+                            style={{
+                              color: COLORS.textPrimary,
+                              fontWeight: 500,
+                              fontSize: "15px",
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            {value}
+                          </div>
+                        </div>
+                      </foreignObject>
+                    </g>
+                  );
+                })}
+              </svg>
+           </div>
+           <div
+  style={{
+    ...glassPanel,
+    position: "relative",
+    overflow: "hidden",
+    padding: "42px 46px",
+    background: INK.panelBg,
+    border: `1px solid ${INK.panelBorder}`,
+    backdropFilter: "blur(24px)",
+    WebkitBackdropFilter: "blur(24px)",
+  }}
+>
+  {/* Background Glow */}
+  <div
+    style={{
+      position: "absolute",
+      right: "-80px",
+      top: "-80px",
+      width: "220px",
+      height: "220px",
+      borderRadius: "50%",
+      background: `${ACCENT}12`,
+      filter: "blur(70px)",
+      pointerEvents: "none",
+    }}
+  />
+
+  {/* Quote Mark */}
+  <div
+    style={{
+      position: "absolute",
+      top: "18px",
+      left: "26px",
+      fontSize: "5rem",
+      lineHeight: 1,
+      fontFamily: "Georgia, serif",
+      color: `${ACCENT}30`,
+      userSelect: "none",
+    }}
+  >
+    "
+  </div>
+
+  <div
+    style={{
+      position: "relative",
+      zIndex: 2,
+      display: "flex",
+      flexDirection: "column",
+      gap: "20px",
+      marginLeft: "20px",
+    }}
+  >
+    <span
+      style={{
+        fontFamily: FONT.mono,
+        fontSize: "11px",
+        letterSpacing: "4px",
+        textTransform: "uppercase",
+        color: INK.faint,
+      }}
+    >
+      Beyond the Code
+    </span>
+
+    <h3
+      style={{
+        margin: 0,
+        fontSize: "1.1rem",
+        fontWeight: 300,
+        lineHeight: 1.5,
+        color: COLORS.textPrimary,
+        maxWidth: "720px",
+      }}
+    >
+      The best part of technology isn't the{" "}
+      <span
+        style={{
+          color: ACCENT,
+          fontWeight: 600,
+        }}
+      >
+        code
+      </span>
+      .
+      <br />
+      It's discovering what you're capable of{" "}
+      <span
+        style={{
+          color: ACCENT,
+          fontWeight: 600,
+        }}
+      >
+        creating.
+      </span>
+    </h3>
+  </div>
+</div>
+
         </div>
       </div>
     </SectionWrapper>
