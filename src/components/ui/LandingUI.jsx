@@ -3,11 +3,9 @@ import { gsap } from 'gsap';
 import { Rocket, FileText, Radio, ChevronDown } from 'lucide-react';
 
 const ROLES = [
-  'Web Developer',
-  'Cybersecurity Enthusiast',
-  'Cloud Eplorer',
-  'ECE Engineer',
-  'Team Leader',
+  'Software Developer',
+  'Cybersecurity Learner',
+  'DevOps',
 ];
 
 /* ─────────────────────────────────────────────
@@ -38,12 +36,12 @@ function TypedText({ texts }) {
   }, [displayed, isDeleting, current, texts]);
 
   return (
-    <span style={{ color: 'var(--neon-blue, #00d4ff)', fontWeight: 600, textShadow: '0 0 8px rgba(0,212,255,0.3)' }}>
+    <span style={{ color: 'var(--neon-blue, #e6e6e6)', fontWeight: 400, textShadow: '0 0 8px rgba(0, 0, 0, 0.3)' }}>
       {displayed}
       <span className="typing-cursor" style={{
         marginLeft: '4px',
         paddingLeft: '2px',
-        borderLeft: '2px solid var(--neon-blue, #00d4ff)',
+        borderLeft: '2px solid var(--neon-blue, #cfcfcf)',
         animation: 'blink-cursor 0.75s infinite steps(2)',
       }} />
     </span>
@@ -198,7 +196,7 @@ export default function LandingUI({ onLaunch, onResume, onContact }) {
       {/* Left Interface Content Panel */}
       <div className="landing-content-panel" style={{
         marginLeft: 'clamp(24px, 7vw, 90px)',
-        maxWidth: '460px',
+        maxWidth: '100%',
         pointerEvents: 'all',
         display: 'flex',
         flexDirection: 'column',
@@ -206,33 +204,33 @@ export default function LandingUI({ onLaunch, onResume, onContact }) {
       }}>
 
         {/* localized vignette behind the content to improve text readability without heavy boxes */}
-        <div aria-hidden style={{
-          position: 'absolute',
-          left: '-6vw',
-          top: '-6vh',
-          width: '120%',
-          height: '120%',
-          pointerEvents: 'none',
-          background: 'radial-gradient(ellipse at 18% 20%, rgba(0,0,0,0.26) 0%, rgba(0,0,0,0.08) 35%, rgba(0,0,0,0) 60%)',
-          filter: 'blur(18px) saturate(0.95)'
-        }} />
 
         {/* Subtitle Mission Badge */}
-        <div style={{
+      <div style={{
           fontFamily: 'var(--font-mono, monospace)',
-          fontSize: '11px',
-          color: 'var(--neon-blue, #ffffff)',
-          letterSpacing: '4px',
-          marginBottom: '18px',
+          fontSize: '14px',
+          color: ' #ffffff',
+          letterSpacing: '2px',
+          marginTop:'10px',
+          marginBottom: '35px',
           opacity: 0.85,
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
         }}>
-          <span style={{ display: 'inline-block', width: '30px', height: '1px', background: 'var(--neon-blue, #00d4ff)' }} />
-            NEVER GIVE UP 
+         
+           "Stay Hungry ,  Stay Foolish"
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            letterSpacing: "5px",
+            fontSize: "11px",
+            color: "rgba(238, 243, 245, 0.55)",
+          }}
+        >
+          — STEVE JOBS
         </div>
-
+      </div>
         {/* Cinematic Header Text Block */}
         <div ref={titleRef} className="landing-title-block" style={{ opacity: 0 }}>
           <h1 className="landing-main-title" style={{
@@ -248,29 +246,28 @@ export default function LandingUI({ onLaunch, onResume, onContact }) {
           }}>
             GAURAV KUMAR
           </h1>
-          <h1 className="landing-title-outline" style={{
+          <h2 className="landing-title-outline" style={{
             fontFamily: 'var(--font-display, sans-serif)',
-            fontSize: 'clamp(42px, 5.5vw, 38px)',
+            fontSize: 'clamp(30px, 5vw, 36px)',
             fontWeight: 900,
             lineHeight: 0.95,
             letterSpacing: '-1.5px',
             marginBottom: '24px',
-            WebkitTextStroke: '1.5px rgba(0,212,255,0.8)',
+            WebkitTextStroke: '1.5px rgba(250, 250, 250, 0.8)',
             color: 'transparent',
             textShadow: '0 8px 30px rgba(0,0,0,0.55)',
             textAlign: 'left',
           }}>
             CHANDRAVANSHI
-          </h1>
+          </h2>
         </div>
 
         {/* Typed Dynamic Status String Indicator */}
         <div ref={subtitleRef} style={{
-          fontFamily: 'var(--font-body, sans-serif)',
-          fontSize: 'clamp(15px, 1.6vw, 19px)',
+          fontSize: '15px',
+          fontFamily: "'Space Grotesk', sans-serif",
           marginBottom: '36px',
-          opacity: 0,
-          minHeight: '30px',
+          opacity: 1,
         }}>
           <TypedText texts={ROLES} />
         </div>

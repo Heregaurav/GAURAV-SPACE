@@ -5,6 +5,11 @@ import { extractUsernameFromUrl } from '../utils/helpers.js';
 
 const LEETCODE_API = 'https://leetcode.com/graphql';
 
+// NOTE: the previous query never asked for calendar/streak data at all, so
+// `calendar: []` and `streak: { current: 0, longest: 0 }` were always hardcoded —
+// not fetched-and-empty, just never requested. `submissionCalendar` (a JSON string
+// of `{ "<unix_timestamp_seconds>": count }`, one entry per active day, rolling
+// ~1 year back) and `userCalendar { streak totalActiveDays }` are the real fields.
 const profileQuery = `query userProfile($username: String!) {
   matchedUser(username: $username) {
     username
@@ -25,6 +30,11 @@ const profileQuery = `query userProfile($username: String!) {
       languageName
       problemsSolved
     }
+    submissionCalendar
+    userCalendar {
+      streak
+      totalActiveDays
+    }
   }
 }`;
 
@@ -33,7 +43,11 @@ export async function getLeetCodeProfile(username = undefined) {
   if (user && typeof user === 'string' && user.includes('http')) user = extractUsernameFromUrl(user);
   if (!user) throw Object.assign(new Error('LEETCODE_USERNAME not configured'), { status: 500 });
   try {
-    const resp = await axios.post(LEETCODE_API, { query: profileQuery, variables: { username: user }, operationName: 'userProfile' }, { headers: { 'Content-Type': 'application/json', 'Referer': 'https://leetcode.com', 'User-Agent': 'portfolio-backend/1.0 (+https://github.com)' } });
+    const resp = await axios.post(
+      LEETCODE_API,
+      { query: profileQuery, variables: { username: user }, operationName: 'userProfile' },
+      { headers: { 'Content-Type': 'application/json', 'Referer': 'https://leetcode.com', 'User-Agent': 'portfolio-backend/1.0 (+https://github.com)' } }
+    );
     const data = resp.data;
     if (data.errors) throw Object.assign(new Error('LeetCode error'), { details: data.errors, status: 502 });
     const m = data.data.matchedUser;
@@ -53,8 +67,15 @@ export async function getLeetCodeProfile(username = undefined) {
       medium_solved: medium,
       hard_solved: hard,
       total_solved: total,
-      calendar: [],
-      streak: { current: 0, longest: 0 }
+      calendar: transformCalendar(m.submissionCalendar),
+      // LeetCode's API only exposes the *current* streak (consecutive active days
+      // up to today) via userCalendar.streak — there's no "longest streak ever"
+      // field available here, so we report `longest: null` rather than fabricating
+      // a number the API never gave us.
+      streak: {
+        current: m.userCalendar?.streak ?? 0,
+        longest: null,
+      },
     };
   } catch (err) {
     if (err.response && err.response.status === 429) throw Object.assign(new Error('LeetCode rate limit'), { status: 429 });
@@ -62,28 +83,30 @@ export async function getLeetCodeProfile(username = undefined) {
   }
 }
 
-function transformCalendar(cal) {
-  if (!cal) return [];
-  // Expected shape: { totalActiveDays, weeks: [ { contributionDays: [{ date, contributionCount }] } ] }
-  const days = [];
+/**
+ * `submissionCalendar` from LeetCode's API is a JSON-encoded string mapping
+ * unix timestamps (seconds, UTC midnight of each active day) to submission
+ * counts, e.g. `{"1664323200":1,"1664496000":4}` — NOT the GitHub-style
+ * `{ weeks: [{ contributionDays: [...] }] }` shape the old parser assumed.
+ */
+function transformCalendar(submissionCalendarJson) {
+  if (!submissionCalendarJson) return [];
+
+  let raw;
   try {
-    const weeks = cal.weeks || [];
-    for (const week of weeks) {
-      const contribDays = week.contributionDays || [];
-      for (const d of contribDays) {
-        if (d && d.date) days.push({ date: d.date, count: Number(d.contributionCount || 0) });
-      }
-    }
-  } catch (e) {
+    raw = typeof submissionCalendarJson === 'string' ? JSON.parse(submissionCalendarJson) : submissionCalendarJson;
+  } catch {
     return [];
   }
+  if (!raw || typeof raw !== 'object') return [];
 
-  // ensure unique by date (some calendars include overlapping ranges) and sort
-  const map = new Map();
-  for (const d of days) map.set(d.date, (map.get(d.date) || 0) + d.count);
-  const arr = Array.from(map.entries()).map(([date, count]) => ({ date, count }));
-  arr.sort((a, b) => new Date(a.date) - new Date(b.date));
-  return arr;
+  const days = Object.entries(raw).map(([timestampSeconds, count]) => {
+    const date = new Date(Number(timestampSeconds) * 1000).toISOString().slice(0, 10);
+    return { date, count: Number(count) || 0 };
+  });
+
+  days.sort((a, b) => new Date(a.date) - new Date(b.date));
+  return days;
 }
 
 export async function getHeatmap(username) {

@@ -89,10 +89,11 @@ function LoadingScreen({ onDone }) {
         fontSize: 'clamp(24px, 4vw, 40px)',
         letterSpacing: '8px',
         marginBottom: '8px',
-        background: 'linear-gradient(135deg, #00d4ff, #b44fff)',
+        background: 'linear-gradient(135deg, #476268, #ffffff)',
         WebkitBackgroundClip: 'text',
         WebkitTextFillColor: 'transparent',
       }}>
+
         GAURAV.SPACE
       </div>
 
@@ -100,10 +101,10 @@ function LoadingScreen({ onDone }) {
         fontFamily: 'var(--font-mono)',
         fontSize: '10px',
         letterSpacing: '4px',
-        color: 'rgba(0,212,255,0.5)',
+        color: 'rgba(153, 183, 189, 0.5)',
         marginBottom: '48px',
       }}>
-        PORTFOLIO UNIVERSE
+        GET TO KNOW MORE ABOUT ME 
       </div>
 
       {/* Progress bar */}
@@ -118,7 +119,7 @@ function LoadingScreen({ onDone }) {
         <div style={{
           height: '100%',
           width: `${progress}%`,
-          background: 'linear-gradient(90deg, #00d4ff, #b44fff)',
+          background: 'linear-gradient(90deg, #3b585e, #ffffff)',
           transition: 'width 0.2s ease',
           boxShadow: '0 0 10px #00d4ff',
         }} />
@@ -128,7 +129,7 @@ function LoadingScreen({ onDone }) {
         fontFamily: 'var(--font-mono)',
         fontSize: '10px',
         letterSpacing: '3px',
-        color: 'rgba(0,212,255,0.4)',
+        color: 'rgba(255, 255, 255, 0.4)',
         display: 'flex',
         justifyContent: 'space-between',
         width: '280px',
