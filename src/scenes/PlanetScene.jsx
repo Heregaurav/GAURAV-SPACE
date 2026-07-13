@@ -10,6 +10,8 @@ import Planet, { PLANET_CONFIGS } from '../components/planets/Planet';
 import Spaceship from '../components/spaceship/Spaceship';
 import backgroundModelUrl from '../components/effects/background.glb?url';
 
+useGLTF.preload(backgroundModelUrl);
+
 // ---------- constants (unchanged) ----------
 const PLANET_TYPES = ['webdev', 'cybersec', 'cloud', 'electronics', 'leadership'];
 const MIN_ORBIT_RADIUS = 30;
@@ -70,7 +72,8 @@ function getApproachTarget(planet, shipPosition, time = 0) {
 export default function PlanetScene({
   activePlanet,
   onSelectPlanet,
-  onZoomOut
+  onZoomOut,
+  onReady = () => {}
 }) {
 
   const camRef = useRef();
@@ -80,6 +83,13 @@ export default function PlanetScene({
 
   // ----- LOAD BACKGROUND MODEL -----
   const { scene: bgScene } = useGLTF(backgroundModelUrl);
+  const readyRef = useRef(false);
+
+  useEffect(() => {
+    if (!bgScene || readyRef.current) return;
+    readyRef.current = true;
+    onReady();
+  }, [bgScene, onReady]);
 
   const shipPosRef = useRef({ x: 0, y: -0.2, z: 4 });
   const prevShipPos = useRef({ x: 0, y: -0.2, z: 4 });
@@ -269,15 +279,15 @@ export default function PlanetScene({
     const boostFactor = keys.has('boost') ? 1.8 : 1;
     const thrust = baseSpeed * boostFactor;
 
+    shipEuler.set(shipRotation.current.pitch, shipRotation.current.yaw, 0);
+    const forward = new Vector3(0, 0, -1).applyEuler(shipEuler);
     const right = new Vector3(1, 0, 0).applyEuler(shipEuler);
     const up = new Vector3(0, 1, 0);
-
-    shipEuler.set(shipRotation.current.pitch, shipRotation.current.yaw, 0);
     shipDirection.set(0, 0, -1).applyEuler(shipEuler);
 
     const moveDirection = new Vector3();
-    if (keys.has('forward')) moveDirection.add(shipDirection);
-    if (keys.has('back')) moveDirection.sub(shipDirection);
+    if (keys.has('forward')) moveDirection.add(forward);
+    if (keys.has('back')) moveDirection.sub(forward);
     if (keys.has('left')) moveDirection.sub(right);
     if (keys.has('right')) moveDirection.add(right);
     if (keys.has('up')) moveDirection.add(up);
@@ -285,8 +295,7 @@ export default function PlanetScene({
 
     if (moveDirection.lengthSq() > 0.0001) {
       manualControlActive.current = true;
-      moveDirection.normalize().multiplyScalar(thrust);
-      shipVelocity.current.lerp(moveDirection, 0.2);
+      shipVelocity.current.copy(moveDirection.normalize().multiplyScalar(thrust));
     } else {
       shipVelocity.current.multiplyScalar(0.92);
       if (shipVelocity.current.length() < 0.01) shipVelocity.current.set(0, 0, 0);
@@ -305,15 +314,7 @@ export default function PlanetScene({
       shipRef.current.position.y += (shipPosRef.current.y - shipRef.current.position.y) * 0.12;
       shipRef.current.position.z += (shipPosRef.current.z - shipRef.current.position.z) * 0.12;
 
-      if (shipVelocity.current.lengthSq() > 0.0004) {
-        const travelDir = shipVelocity.current.clone().normalize();
-        const targetYaw = Math.atan2(travelDir.x, -travelDir.z);
-        const targetPitch = Math.asin(Math.max(-1, Math.min(1, travelDir.y)));
-        shipRotation.current.yaw += (targetYaw - shipRotation.current.yaw) * 0.08;
-        shipRotation.current.pitch += (targetPitch - shipRotation.current.pitch) * 0.08;
-      }
-
-      shipRef.current.rotation.set(shipRotation.current.pitch, shipRotation.current.yaw, -shipVelocity.current.x * 0.12);
+      shipRef.current.rotation.set(shipRotation.current.pitch, shipRotation.current.yaw, 0);
     }
 
     const shipPos = shipRef.current?.position || new Vector3(0, -1, 4);

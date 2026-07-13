@@ -1,19 +1,25 @@
 import { useEffect, useState } from 'react';
 
-export default function LaunchSequence({ onComplete }) {
+export default function LaunchSequence({
+  onComplete,
+  title = "Welcome to my  Space",
+  subtitle = 'Connecting to the Cosmos....',
+  accent = '#D4AF37',
+  autoComplete = true,
+}) {
   const [active, setActive] = useState(false);
 
   useEffect(() => {
     const showTimeout = window.setTimeout(() => setActive(true), 40);
-    const completeTimeout = window.setTimeout(onComplete, 900);
+    const completeTimeout = autoComplete && onComplete ? window.setTimeout(onComplete, 900) : null;
 
     return () => {
       window.clearTimeout(showTimeout);
-      window.clearTimeout(completeTimeout);
+      if (completeTimeout) window.clearTimeout(completeTimeout);
     };
-  }, [onComplete]);
+  }, [autoComplete, onComplete]);
 
-  const color = active ? 'var(--neon-green)' : 'var(--neon-blue)';
+  const color = active ? accent : 'var(--neon-blue)';
 
   return (
     <div
@@ -24,40 +30,83 @@ export default function LaunchSequence({ onComplete }) {
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 20,
-        background: 'radial-gradient( rgba(0,0,20,0.88) 0%, rgba(0,0,0,0.98) 100%)',
+        background: 'radial-gradient(circle at center, rgba(0, 212, 255, 0.08) 0%, rgba(0, 0, 0, 0.92) 55%, rgba(0, 0, 0, 0.98) 100%)',
       }}
     >
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          background: 'radial-gradient(circle, rgba(0,212,255,0.08) 0%, transparent 42%)',
+          background: 'radial-gradient(circle, rgba(0,212,255,0.1) 0%, transparent 48%)',
           pointerEvents: 'none',
         }}
       />
 
       <div
         style={{
-          width: '250px',
-          height: '250px',
-          borderRadius: '50%',
-          border: `2px solid ${color}`,
-          boxShadow: `0 0 60px ${color}55, inset 0 0 24px ${color}33`,
-          display: 'grid',
-          placeItems: 'center',
-          backdropFilter: 'blur(10px)',
+            width: '520px',
+            height: '520px',
+
+            borderRadius: '50%',
+
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            textAlign: 'center',
+
+            padding: '32px',
+
+            background: 'rgba(255, 255, 255, 0.02)',   // much more transparent
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
+
+            border: `1px solid ${color}40`,
+            boxShadow: `
+                0 0 80px ${color}20,
+                inset 0 0 40px ${color}10
+            `,
         }}
       >
+        <div style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 'clamp(18px, 4vw, 30px)',
+          letterSpacing: '5px',
+          color: 'rgba(255,255,255,0.95)',
+          textAlign: 'center',
+        }}>
+          {title}
+        </div>
+
+        <div style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: '11px',
+          letterSpacing: '3px',
+          color: 'rgba(255,255,255,0.58)',
+             marginTop: '10px',
+          textAlign: 'center',
+          lineHeight: 1.6,
+        }}>
+          {subtitle}
+        </div>
+
         <div
           style={{
-            width: '140px',
-            height: '140px',
-            borderRadius: '50%',
-            background: `radial-gradient(circle at center, ${color}ff 0%, ${color}22 34%, transparent 72%)`,
-            boxShadow: `0 0 40px ${color}aa`,
-            animation: active ? 'pulse-glow 1.4s ease-in-out infinite' : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '10px 16px',
+            borderRadius: '999px',
+            border: `1px solid ${color}33`,
+               marginTop: '20px',
+            background: 'rgba(255,255,255,0.03)',
           }}
-        />
+        >
+          <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, boxShadow: `0 0 14px ${color}` }} />
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '2px', color: 'rgba(255,255,255,0.75)' }}>
+            {active ? 'LOADING ASSETS' : 'INITIALIZING'}
+          </span>
+        </div>
       </div>
 
       <style>{`

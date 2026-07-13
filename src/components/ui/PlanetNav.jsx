@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { gsap } from 'gsap';
 import {
   Code2,
@@ -8,7 +8,7 @@ import {
   UsersRound,
 } from 'lucide-react';
 
-const NAV_ITEMS = [
+export const NAV_ITEMS = [
   {
     id: 0,
     label: 'WEB.DEV',
@@ -23,13 +23,13 @@ const NAV_ITEMS = [
   },
   {
     id: 2,
-    label: 'CLOUD.AWS',
+    label: 'DEVOPS',
     icon: ServerCog,
     color: '#ffffff',
   },
   {
     id: 3,
-    label: 'ELEC.IOT',
+    label: 'ACADEMICS',
     icon: Microchip,
     color: '#ffffff',
   },
@@ -41,8 +41,11 @@ const NAV_ITEMS = [
   },
 ];
 
-export default function PlanetNav({ activePlanet, onSelect, onPrev, onNext, onRetreat }) {
+export default function PlanetNav({ activePlanet, onSelect, onPrev, onNext, onRetreat, compact = false }) {
   const containerRef = useRef();
+  const [isCompact, setIsCompact] = useState(() => (
+    typeof window !== 'undefined' ? window.innerWidth <= 640 : false
+  ));
 
   useEffect(() => {
     gsap.fromTo(containerRef.current,
@@ -51,46 +54,82 @@ export default function PlanetNav({ activePlanet, onSelect, onPrev, onNext, onRe
     );
   }, []);
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 640px)');
+    const handleChange = (event) => setIsCompact(event.matches);
+
+    handleChange(mediaQuery);
+    mediaQuery.addEventListener('change', handleChange);
+
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  const containerStyle = {
+    position: compact ? 'fixed' : 'absolute',
+    top: compact ? 'auto' : 'auto',
+    bottom: compact ? '12px' : (isCompact ? '12px' : '24px'),
+    left: compact ? '50%' : '50%',
+    transform: compact ? 'translateX(-50%)' : 'translateX(-50%)',
+    zIndex: 50,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: compact ? '10px' : (isCompact ? '10px' : '14px'),
+    width: compact ? 'calc(100vw - 16px)' : (isCompact ? 'calc(100vw - 16px)' : 'min(960px, calc(100vw - 32px))'),
+    maxWidth: compact ? '560px' : '960px',
+  };
+
+  const gridStyle = {
+    width: '100%',
+    display: compact ? 'flex' : 'grid',
+    gridTemplateColumns: compact ? 'none' : (isCompact ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(120px, 1fr))'),
+    gap: compact ? '8px' : (isCompact ? '8px' : '12px'),
+    padding: compact ? '10px' : (isCompact ? '12px' : '16px'),
+    background: 'rgba(12, 18, 30, 0.35)',
+    backdropFilter: 'blur(22px)',
+    WebkitBackdropFilter: 'blur(22px)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: compact ? '18px' : (isCompact ? '18px' : '24px'),
+    boxShadow: `
+      0 12px 40px rgba(0,0,0,0.28),
+      inset 0 1px 0 rgba(255,255,255,0.05),
+      0 0 30px rgba(0,212,255,0.08)
+    `,
+    overflow: compact ? 'auto hidden' : 'hidden',
+    scrollbarWidth: 'none',
+    msOverflowStyle: 'none',
+  };
+
+  const controlRowStyle = {
+    display: compact ? 'none' : 'flex',
+    width: '100%',
+    flexDirection: isCompact ? 'column' : 'row',
+    gap: isCompact ? '8px' : '10px',
+    justifyContent: 'space-between',
+    alignItems: 'stretch',
+    padding: isCompact ? '8px 10px' : '10px 14px',
+    background: 'rgba(207, 207, 207, 0.03)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: isCompact ? '16px' : '18px',
+  };
+
+  const controlButtonStyle = (background, borderColor, color) => ({
+    flex: 1,
+    minWidth: 0,
+    padding: isCompact ? '9px 12px' : '10px 14px',
+    borderRadius: isCompact ? '12px' : '14px',
+    border: `1px solid ${borderColor}`,
+    background,
+    color,
+    cursor: 'pointer',
+    fontFamily: 'var(--font-mono)',
+    fontSize: isCompact ? '10px' : '11px',
+    letterSpacing: '1.5px',
+  });
+
   return (
-    <div ref={containerRef} className="planet-nav-container" style={{
-      position: 'absolute',
-      bottom: '24px',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      zIndex: 50,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: '14px',
-      width: 'min(960px, calc(100vw - 32px))',
-    }}>
-      <div className="planet-nav-grid" style={{
-             width: '100%',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-            gap: '12px',
-            padding: '16px',
-
-            // Glass Background
-            background: 'rgba(12, 18, 30, 0.35)',
-            backdropFilter: 'blur(22px)',
-            WebkitBackdropFilter: 'blur(22px)',
-
-            // Border
-            border: '1px solid rgba(255,255,255,0.08)',
-
-            // Rounded Corners
-            borderRadius: '24px',
-
-            // Premium Depth
-            boxShadow: `
-              0 12px 40px rgba(0,0,0,0.28),
-              inset 0 1px 0 rgba(255,255,255,0.05),
-              0 0 30px rgba(0,212,255,0.08)
-            `,
-
-           overflow: 'hidden',
-      }}>
+    <div ref={containerRef} className="planet-nav-container" style={containerStyle}>
+      <div className="planet-nav-grid" style={gridStyle}>
         {NAV_ITEMS.map((item) => {
   const Icon = item.icon;
 
@@ -100,12 +139,14 @@ export default function PlanetNav({ activePlanet, onSelect, onPrev, onNext, onRe
       onClick={() => onSelect(activePlanet === item.id ? null : item.id)}
       style={{
         display: 'flex',
-        flexDirection: 'column',
+        flexDirection: compact ? 'row' : 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        gap: '6px',
-        padding: '12px 10px',
-        borderRadius: '18px',
+        justifyContent: compact ? 'flex-start' : 'center',
+        gap: compact ? '8px' : '6px',
+        padding: compact ? '10px 12px' : (isCompact ? '10px 8px' : '12px 10px'),
+        borderRadius: compact ? '14px' : (isCompact ? '14px' : '18px'),
+        minWidth: compact ? '92px' : 'auto',
+        flex: compact ? '0 0 auto' : 'unset',
         border:
           activePlanet === item.id
             ? `1px solid ${item.color}`
@@ -139,14 +180,14 @@ export default function PlanetNav({ activePlanet, onSelect, onPrev, onNext, onRe
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: 34,
-          height: 34,
+          width: compact ? 24 : (isCompact ? 30 : 34),
+          height: compact ? 24 : (isCompact ? 30 : 34),
           borderRadius: '50%',
           background: `${item.color}15`,
         }}
       >
         <Icon
-          size={18}
+          size={compact ? 14 : (isCompact ? 16 : 18)}
           color={item.color}
           strokeWidth={2}
         />
@@ -155,9 +196,15 @@ export default function PlanetNav({ activePlanet, onSelect, onPrev, onNext, onRe
       <span
         style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '10px',
-          letterSpacing: '1.5px',
+          fontSize: compact ? '8.5px' : (isCompact ? '9px' : '10px'),
+          letterSpacing: compact ? '1px' : '1.4px',
           textTransform: 'uppercase',
+          textAlign: compact ? 'left' : 'center',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          flex: compact ? 1 : 'unset',
+          minWidth: 0,
         }}
       >
         {item.label}
@@ -169,33 +216,15 @@ export default function PlanetNav({ activePlanet, onSelect, onPrev, onNext, onRe
    
       </div>
 
-      <div className="planet-nav-controls" style={{
-        width: '100%',
-        display: 'flex',
-        gap: '10px',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '10px 14px',
-        background: 'rgba(207, 207, 207, 0.03)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: '18px',
-      }}>
+      <div className="planet-nav-controls" style={controlRowStyle}>
         <button
           type="button"
           onClick={onPrev}
-          style={{
-            flex: 1,
-            minWidth: '0',
-            padding: '10px 14px',
-            borderRadius: '14px',
-            border: '1px solid rgba(148, 135, 135, 0.08)',
-            background: 'rgba(153, 150, 150, 0.05)',
-            color: 'rgba(255,255,255,0.85)',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '11px',
-            letterSpacing: '1.5px',
-          }}
+          style={controlButtonStyle(
+            'rgba(153, 150, 150, 0.05)',
+            'rgba(148, 135, 135, 0.08)',
+            'rgba(255,255,255,0.85)'
+          )}
         >
           ← PREVIOUS
         </button>
@@ -203,19 +232,11 @@ export default function PlanetNav({ activePlanet, onSelect, onPrev, onNext, onRe
         <button
           type="button"
           onClick={onRetreat}
-          style={{
-            flex: 1,
-            minWidth: '0',
-            padding: '10px 14px',
-            borderRadius: '14px',
-            border: '1px solid rgba(255,255,255,0.08)',
-            background: 'rgba(0,212,255,0.08)',
-            color: '#ebf7ff',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '11px',
-            letterSpacing: '1.5px',
-          }}
+          style={controlButtonStyle(
+            'rgba(0,212,255,0.08)',
+            'rgba(255,255,255,0.08)',
+            '#ebf7ff'
+          )}
         >
           HOME BASE
         </button>
@@ -223,19 +244,11 @@ export default function PlanetNav({ activePlanet, onSelect, onPrev, onNext, onRe
         <button
           type="button"
           onClick={onNext}
-          style={{
-            flex: 1,
-            minWidth: '0',
-            padding: '10px 14px',
-            borderRadius: '14px',
-            border: '1px solid rgba(255,255,255,0.08)',
-            background: 'rgba(180,79,255,0.08)',
-            color: '#f8f2ff',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '11px',
-            letterSpacing: '1.5px',
-          }}
+          style={controlButtonStyle(
+            'rgba(180,79,255,0.08)',
+            'rgba(255,255,255,0.08)',
+            '#f8f2ff'
+          )}
         >
           NEXT →
         </button>

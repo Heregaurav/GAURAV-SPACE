@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 
-const PLANET_DATA = {
+export const PLANET_DATA = {
   webdev: {
     title: 'WEB DEVELOPMENT',
     subtitle: 'Full Stack Development',
@@ -21,19 +21,19 @@ const PLANET_DATA = {
         name: 'Inkwell',
         desc: 'AI-powered platform for readers and writers',
         tech: ['React', 'Node.js', 'MongoDB'],
-        link: '#',
+        link: 'https://myinkwell.vercel.app/',
       },
       {
         name: 'Anonymous chat',
         desc: 'Chat anonymously using WebSockets',
         tech: ['Socket.IO', 'Express', 'React'],
-        link: '#',
+        link: 'https://void25.vercel.app/',
       },
       {
         name: 'Tracely AI',
         desc: 'Showed the vulnerabilites  effectively ',
         tech: ['React', 'Node.js', 'ML'],
-        link: '#',
+        link: 'https://tracely-ai.vercel.app/',
       },
     ],
   },
@@ -41,7 +41,7 @@ const PLANET_DATA = {
   cybersec: {
     title: 'CYBERSECURITY',
     subtitle: 'Security & Threat Detection',
-    color: '#b6ffdd',
+    color: '#e4e4e4',
     icon: '🛡️',
     description:
       'Exploring offensive and defensive security through web security, network analysis, behavioral analytics, and AI-driven threat detection.',
@@ -59,19 +59,18 @@ const PLANET_DATA = {
         name: 'Tracely AI',
         desc: 'UEBA-based insider threat detection',
         tech: ['Python', 'Isolation Forest', 'React'],
-        link: '#',
+        link: 'https://tracely-ai.vercel.app/',
       },
       {
         name: 'Guardian AI',
         desc: 'AI-powered harmful content detection',
         tech: ['RoBERTa', 'Python', 'NLP'],
-        link: '#',
+        link: 'https://github.com/Heregaurav/Guardian-AI',
       },
       {
         name: 'TryHackMe',
         desc: 'Top 5% global ranking',
         tech: ['Web Security', 'Networking'],
-        link: '#',
       },
     ],
   },
@@ -79,7 +78,7 @@ const PLANET_DATA = {
   cloud: {
     title: 'DEVOPS',
     subtitle: 'Infrastructure & Deployment',
-    color: '#e4c1ff',
+    color: '#f8f8f8',
     icon: '☁️',
     description:
       'Deploying scalable applications using containers, Kubernetes, AWS, and modern DevOps practices.',
@@ -96,19 +95,13 @@ const PLANET_DATA = {
         name: 'Inkwell Deployment',
         desc: 'Cloud-native deployment on AWS',
         tech: ['AWS', 'Docker', 'Kubernetes'],
-        link: '#',
+        link: 'https://myinkwell.vercel.app/',
       },
       {
-        name: 'Containerized Services',
+        name: 'Video streaming Platform',
         desc: 'Dockerized full-stack applications',
         tech: ['Docker', 'Node.js'],
-        link: '#',
-      },
-      {
-        name: 'Monitoring Stack',
-        desc: 'Infrastructure monitoring',
-        tech: ['Prometheus', 'Grafana'],
-        link: '#',
+        link: 'https://vidtube1.vercel.app/',
       },
     ],
   },
@@ -116,7 +109,7 @@ const PLANET_DATA = {
   academics: {
     title: 'ACADEMICS',
     subtitle: 'ECE + Cybersecurity',
-    color: '#d8957d',
+    color: '#dadada',
     icon: '🎓',
     description:
       'Electronics & Communication Engineering undergraduate with a Minor in Cybersecurity, combining software engineering with secure system design.',
@@ -133,19 +126,13 @@ const PLANET_DATA = {
         name: 'B.Tech in ECE',
         desc: 'Indian Institute of Information Technology Dharwad',
         tech: ['Electronics', 'Programming'],
-        link: '#',
+      
       },
       {
         name: 'Minor in Cybersecurity',
         desc: 'Focused on secure systems and networking',
         tech: ['Cybersecurity', 'Networking'],
-        link: '#',
-      },
-      {
-        name: 'Google Cybersecurity Certificate',
-        desc: 'Professional certification from Coursera',
-        tech: ['Security'],
-        link: '#',
+
       },
     ],
   },
@@ -153,7 +140,7 @@ const PLANET_DATA = {
   leadership: {
     title: 'LEADERSHIP',
     subtitle: 'Leadership & Extracurriculars',
-    color: '#e95555',
+    color: '#ffffff',
     icon: '🌟',
     description:
       'Leading student communities, organizing technical events, and contributing to campus activities alongside competitive sports.',
@@ -169,19 +156,19 @@ const PLANET_DATA = {
         name: 'Dance Club Lead',
         desc: 'Led the team to multiple competition wins and organized college fest events.',
         tech: ['Leadership', 'Events'],
-        link: '#',
+        
       },
       {
         name: 'MLSA Technical Team',
         desc: 'Conducted workshops on web, cloud, and cybersecurity.',
         tech: ['Workshops', 'Cloud', 'Security'],
-        link: '#',
+        
       },
       {
         name: 'College Volleyball Team',
         desc: 'INTER-IIIT team member and junior state-level player.',
         tech: ['Teamwork', 'Sports'],
-        link: '#',
+        
       },
     ],
   },
@@ -227,7 +214,10 @@ function SkillBar({ name, level, color, delay }) {
 
 export default function PlanetPanel({ planetIndex, onClose }) {
   const panelRef = useRef();
-  const types = ['webdev', 'cybersec', 'cloud', 'electronics', 'leadership'];
+  const [isCompact, setIsCompact] = useState(() => (
+    typeof window !== 'undefined' ? window.innerWidth <= 720 : false
+  ));
+  const types = ['webdev', 'cybersec', 'cloud', 'academics', 'leadership'];
   const type = types[planetIndex];
   const data = PLANET_DATA[type] || PLANET_DATA.webdev;
 
@@ -237,6 +227,16 @@ export default function PlanetPanel({ planetIndex, onClose }) {
       { opacity: 1, x: 0, filter: 'blur(0px)', duration: 0.6, ease: 'power3.out' }
     );
   }, [planetIndex]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 720px)');
+    const handleChange = (event) => setIsCompact(event.matches);
+
+    handleChange(mediaQuery);
+    mediaQuery.addEventListener('change', handleChange);
+
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
 
   const handleClose = () => {
     gsap.to(panelRef.current, {
@@ -249,16 +249,18 @@ export default function PlanetPanel({ planetIndex, onClose }) {
   return (
     <div ref={panelRef} className="planet-panel" style={{
       position: 'fixed',
-      right: '26px',
-      top: '50%',
-      transform: 'translateY(-50%)',
-      width: 'min(420px, 92vw)',
-      maxHeight: '88vh',
+      right: isCompact ? 'auto' : '26px',
+      left: isCompact ? '50%' : 'auto',
+      top: isCompact ? 'auto' : '50%',
+      bottom: isCompact ? '88px' : 'auto',
+      transform: isCompact ? 'translateX(-50%)' : 'translateY(-50%)',
+      width: isCompact ? 'calc(100vw - 16px)' : 'min(420px, 92vw)',
+      maxHeight: isCompact ? 'calc(100vh - 180px)' : '88vh',
       overflowY: 'auto',
-      background: 'rgba(8, 12, 24, 0.78)',
-      border: `1px solid rgba(255,255,255,0.12)`,
-      borderRadius: '28px',
-      padding: '30px',
+      background: isCompact ? 'rgba(8, 12, 24, 0.92)' : 'rgba(8, 12, 24, 0.78)',
+      border: `1px solid rgba(255,255,255,${isCompact ? '0.16' : '0.12'})`,
+      borderRadius: isCompact ? '22px' : '28px',
+      padding: isCompact ? '16px' : '30px',
       zIndex: 120,
       backdropFilter: 'blur(32px)',
       boxShadow: `0 30px 80px rgba(0,0,0,0.35), inset 0 0 50px rgba(255,255,255,0.04)`,
@@ -268,21 +270,21 @@ export default function PlanetPanel({ planetIndex, onClose }) {
       <div style={{ position: 'absolute', inset: '12px', border: `1px solid ${data.color}16`, borderRadius: '16px', pointerEvents: 'none' }} />
       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '6px', background: `linear-gradient(90deg, ${data.color}, transparent)` }} />
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: isCompact ? '16px' : '24px', position: 'relative', zIndex: 1 }}>
         <div>
           <p style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: '10px',
+            fontSize: isCompact ? '9px' : '10px',
             letterSpacing: '2px',
             color: 'rgba(255,255,255,0.35)',
             textTransform: 'uppercase',
-            marginBottom: '12px',
+            marginBottom: isCompact ? '8px' : '12px',
           }}>
             {data.subtitle}
           </p>
           <h2 style={{
             fontFamily: 'var(--font-display)',
-            fontSize: '28px',
+            fontSize: isCompact ? '20px' : '28px',
             letterSpacing: '2px',
             color: 'rgba(255,255,255,0.94)',
             lineHeight: 1.05,
@@ -294,7 +296,7 @@ export default function PlanetPanel({ planetIndex, onClose }) {
         <button className="planet-panel-close" onClick={handleClose} style={{
           background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: '16px', color: 'rgba(255,255,255,0.65)',
-          width: '36px', height: '36px', cursor: 'none',
+          width: isCompact ? '34px' : '36px', height: isCompact ? '34px' : '36px', cursor: 'pointer',
           fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center',
           transition: 'all 0.2s',
           flexShrink: 0,
@@ -308,10 +310,10 @@ export default function PlanetPanel({ planetIndex, onClose }) {
       {/* Description */}
       <p style={{
         fontFamily: 'var(--font-body)',
-        fontSize: '14px',
-        lineHeight: 1.8,
+        fontSize: isCompact ? '13px' : '14px',
+        lineHeight: isCompact ? 1.65 : 1.8,
         color: 'rgba(255,255,255,0.86)',
-        marginBottom: '24px',
+        marginBottom: isCompact ? '18px' : '24px',
         borderLeft: `3px solid ${data.color}40`,
         paddingLeft: '12px',
       }}>
@@ -319,47 +321,62 @@ export default function PlanetPanel({ planetIndex, onClose }) {
       </p>
 
       {/* Divider */}
-      <div style={{ height: '1px', background: `linear-gradient(90deg, ${data.color}44, transparent)`, marginBottom: '20px' }} />
+      <div style={{ height: '1px', background: `linear-gradient(90deg, ${data.color}44, transparent)`, marginBottom: isCompact ? '16px' : '20px' }} />
 
-      {/* Skills */}
-      {/* <div style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: isCompact ? '18px' : '24px', position: 'relative', zIndex: 1 }}>
         <h3 style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '10px',
+          fontSize: isCompact ? '9px' : '10px',
           letterSpacing: '3px',
           color: 'rgba(255,255,255,0.32)',
-          marginBottom: '16px',
+          marginBottom: isCompact ? '12px' : '16px',
         }}>
-          CORE COMPETENCIES
+          SKILLS
         </h3>
-        {data.skills.map((skill, i) => (
-          <SkillBar key={skill.name} name={skill.name} level={skill.level} color={data.color} delay={i * 0.1} />
-        ))}
-      </div> */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {data.skills.map((skill) => (
+            <span
+              key={skill}
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: isCompact ? '9px' : '10px',
+                letterSpacing: '1px',
+                padding: '4px 9px',
+                border: `1px solid ${data.color}44`,
+                borderRadius: '999px',
+                color: `${data.color}dd`,
+                background: `${data.color}10`,
+              }}
+            >
+              {skill}
+            </span>
+          ))}
+        </div>
+      </div>
 
       {/* Divider */}
-      <div style={{ height: '1px', background: `linear-gradient(90deg, ${data.color}44, transparent)`, marginBottom: '20px' }} />
+      <div style={{ height: '1px', background: `linear-gradient(90deg, ${data.color}44, transparent)`, marginBottom: isCompact ? '16px' : '20px' }} />
 
       {/* Highlights */}
       <div>
         <h3 style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '10px',
+          fontSize: isCompact ? '9px' : '10px',
           letterSpacing: '3px',
           color: 'rgba(255,255,255,0.32)',
-          marginBottom: '16px',
+          marginBottom: isCompact ? '12px' : '16px',
         }}>
           SELECTED HIGHLIGHTS
         </h3>
         {data.projects.map((project, i) => (
           <div key={i} style={{
             marginBottom: '12px',
-            padding: '14px',
-            background: `${data.color}08`,
-            border: `1px solid ${data.color}22`,
-            borderRadius: '6px',
+            padding: isCompact ? '12px' : '14px',
+            background: isCompact ? `${data.color}10` : `${data.color}08`,
+            border: `1px solid ${isCompact ? `${data.color}44` : `${data.color}22`}`,
+            borderRadius: isCompact ? '14px' : '6px',
             transition: 'all 0.3s ease',
-            cursor: 'none',
+            cursor: 'pointer',
           }}
           onMouseEnter={e => {
             e.currentTarget.style.background = `${data.color}12`;
@@ -373,14 +390,14 @@ export default function PlanetPanel({ planetIndex, onClose }) {
           }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: '12px', color: 'white', letterSpacing: '1px' }}>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: isCompact ? '13px' : '12px', color: 'white', letterSpacing: '1px' }}>
                 {project.name}
               </span>
-              <a href={project.link} style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: data.color, textDecoration: 'none', letterSpacing: '1px' }}>
+              <a href={project.link} style={{ fontFamily: 'var(--font-mono)', fontSize: isCompact ? '10px' : '9px', color: data.color, textDecoration: 'none', letterSpacing: '1px' }}>
                 VIEW →
               </a>
             </div>
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginBottom: '8px' }}>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: isCompact ? '12px' : '11px', color: 'rgba(255,255,255,0.72)', marginBottom: '8px', lineHeight: 1.5 }}>
               {project.desc}
             </p>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -389,10 +406,11 @@ export default function PlanetPanel({ planetIndex, onClose }) {
                   fontFamily: 'var(--font-mono)',
                   fontSize: '9px',
                   letterSpacing: '1px',
-                  padding: '2px 8px',
-                  border: `1px solid ${data.color}44`,
-                  borderRadius: '2px',
-                  color: `${data.color}99`,
+                  padding: '3px 8px',
+                  border: `1px solid ${data.color}55`,
+                  borderRadius: '999px',
+                  color: `${data.color}dd`,
+                  background: `${data.color}10`,
                 }}>
                   {t}
                 </span>
