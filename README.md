@@ -1,6 +1,6 @@
 # Gaurav Space
 
-Gaurav Space is an interactive 3D portfolio designed as a virtual environment where visitors can learn more about me, my projects, technical skills, and coding journey through exploration instead of traditional web pages.
+It is an interactive 3D portfolio designed as a virtual environment where visitors can learn more about me, my projects, technical skills, and coding journey through exploration instead of traditional web pages.
 
 The portfolio uses a space-themed environment built with 3D models and GLB assets. Visitors can navigate through the scene and interact with different objects and locations, each representing  something about me.
 
