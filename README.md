@@ -1,37 +1,74 @@
+# Gaurav Space
+
+Gaurav Space is an interactive 3D portfolio designed as a virtual environment where visitors can learn more about me, my projects, technical skills, and coding journey through exploration instead of traditional web pages.
+
+The portfolio uses a space-themed environment built with 3D models and GLB assets. Visitors can navigate through the scene and interact with different objects and locations, each representing  something about me.
+
+## Features
+
+- Interactive 3D environment built using custom GLB models
+- Space-themed navigation experience with a spaceship
+- Interactive sections for projects, skills, experience, and contact information
+- Real-time coding profile dashboard that combines data from multiple platforms
+- Custom API integrations to fetch and display coding statistics
+- Responsive design for desktop and mobile devices
+
+## Tech Stack
+
+**Frontend**
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+
+**3D**
+- Three.js
+- React Three Fiber
+- Drei
+- GLB / GLTF Models
+
+**Animation**
+- GSAP
+- Framer Motion
+
+**Deployment**
+- Vercel
+
+
 # Portfolio Backend
 
-Aggregates coding profiles into a single API for a personal portfolio.
+The backend powers the portfolio by fetching, processing, and serving data used across the application. It integrates with multiple external services, caches responses to reduce repeated requests, and provides a single interface for the frontend.
 
-## Tech
+## Features
+
+- Fetches coding profile data from multiple platforms
+- Aggregates data into a unified response for the frontend
+- Caches API responses to improve performance and reduce rate-limit issues
+- Handles error responses and fallback scenarios
+- Configured with security and logging middleware
+
+## Tech Stack
+
 - Node.js
 - Express
 - Axios
 - GraphQL Request
+- Node Cache
 - dotenv
-- node-cache
 - CORS
 - Helmet
 - Morgan
 
-## Installation
 
-1. Copy `.env.example` to `.env` and fill values.
-2. Install dependencies:
+## Coding Profile Integration
 
-```bash
-npm install
-```
+The portfolio collects and displays coding data from multiple platforms in a single place.
 
-3. Run backend:
+Supported platforms include:
 
-```bash
-npm run dev:backend
-```
+- LeetCode
+- GeeksforGeeks
+- CodeChef
+- GitHub
 
-## Docker
-
-```bash
-docker-compose up --build
-```
-
-
+Allowing visitors to view my coding activity and problem-solving progress without visiting each platform individually.
