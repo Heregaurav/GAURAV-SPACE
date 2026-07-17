@@ -48,7 +48,6 @@ function LoadingScreen({ onDone }) {
       'INITIALIZING ENGINE...',
       'LOADING STAR CHARTS...',
       'CALIBRATING THRUSTERS...',
-      'SYSTEMS NOMINAL...',
       'READY FOR LAUNCH',
     ];
     let p = 0;
