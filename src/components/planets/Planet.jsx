@@ -65,7 +65,13 @@ export const PLANET_CONFIGS = {
   },
 };
 
-// 1. Added "scale = 1" to the props destructured here
+// Distance thresholds (world units) for swapping the real GLTF model out for a
+// cheap procedural sphere. These were dead refs before (high was hardcoded
+// visible=true always) — wiring them up is most of the general frame-cost win.
+const LOD_MEDIUM_DISTANCE = 220;
+const LOD_LOW_DISTANCE = 450;
+const LOD_CULL_DISTANCE = 1200;
+
 export default function Planet({ type, orbitRadius, orbitAngle, orbitY, orbitSpeed, index, active, anySelected, onClick, scale = 1 }) {
   const cfg = PLANET_CONFIGS[type] || PLANET_CONFIGS.webdev;
 
@@ -76,6 +82,7 @@ export default function Planet({ type, orbitRadius, orbitAngle, orbitY, orbitSpe
   const modelRef = useRef();
   const glow1Ref = useRef();
   const glow2Ref = useRef();
+  const activeRingRef = useRef();
   const { camera } = useThree();
 
   const gltf = useGLTF(`/${type}.glb`);
@@ -101,6 +108,14 @@ export default function Planet({ type, orbitRadius, orbitAngle, orbitY, orbitSpe
       if (child.isMesh) {
         child.castShadow = true;
         child.receiveShadow = true;
+        // This is the actual fix for the hover freeze: without this, the
+        // raycaster tests every triangle of the imported model on every
+        // pointer move. The invisible proxy sphere below is what should be
+        // handling hit-testing instead — it's cheap and roughly matches the
+        // model's silhouette. Planets with heavier geometry (e.g. Mars
+        // terrain, Saturn's rings) were hitching worse simply because the
+        // raycaster had more triangles to test against.
+        child.raycast = () => null;
       }
     });
 
@@ -125,6 +140,10 @@ export default function Planet({ type, orbitRadius, orbitAngle, orbitY, orbitSpe
         (active ? 0.2 : 0.01) + Math.sin(t * 1.1 + index) * 0.01;
     }
 
+    if (activeRingRef.current) {
+      activeRingRef.current.visible = active;
+    }
+
     if (groupRef.current) {
       const angle = orbitAngle + orbitSpeed * t;
       const x = orbitRadius * Math.cos(angle);
@@ -133,16 +152,20 @@ export default function Planet({ type, orbitRadius, orbitAngle, orbitY, orbitSpe
       groupRef.current.position.set(x, y, z);
       groupRef.current.scale.setScalar(active ? scale * 1.1 : scale * 0.96);
 
-      if (highRef.current) highRef.current.visible = true;
-      if (mediumRef.current) mediumRef.current.visible = false;
-      if (lowRef.current) lowRef.current.visible = false;
-
       const cameraDistance = camera.position.distanceTo(groupRef.current.position);
-      if (cameraDistance > 1200) {
-        groupRef.current.visible = false;
-      } else {
-        groupRef.current.visible = true;
-      }
+
+      // Real LOD switching now — previously high was forced visible=true
+      // regardless of distance, so every planet always rendered full detail
+      // (shadows included) no matter how far away it was.
+      const showHigh = cameraDistance <= LOD_MEDIUM_DISTANCE;
+      const showMedium = !showHigh && cameraDistance <= LOD_LOW_DISTANCE;
+      const showLow = !showHigh && !showMedium;
+
+      if (highRef.current) highRef.current.visible = showHigh;
+      if (mediumRef.current) mediumRef.current.visible = showMedium;
+      if (lowRef.current) lowRef.current.visible = showLow;
+
+      groupRef.current.visible = cameraDistance <= LOD_CULL_DISTANCE;
     }
   });
 
@@ -151,29 +174,34 @@ export default function Planet({ type, orbitRadius, orbitAngle, orbitY, orbitSpe
       <group ref={groupRef}>
         <group ref={highRef}>
           {loadedScene ? (
-            <group
-              ref={modelRef}
-              onClick={(e) => { e.stopPropagation(); onClick(); }}
-              onPointerOver={() => { document.body.style.cursor = 'pointer'; }}
-              onPointerOut={() => { document.body.style.cursor = 'auto'; }}
-            >
+            <group ref={modelRef}>
               <primitive object={loadedScene} />
-              <mesh position={[0, 0, 0]}>
+              {/* This proxy sphere is now the ONLY thing that's clickable/hoverable —
+                  cheap 24x24 sphere instead of the full model geometry. */}
+              <mesh
+                position={[0, 0, 0]}
+                onClick={(e) => { e.stopPropagation(); onClick(); }}
+                onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; }}
+                onPointerOut={() => { document.body.style.cursor = 'auto'; }}
+              >
                 <sphereGeometry args={[cfg.radius * 1.35, 24, 24]} />
                 <meshBasicMaterial transparent opacity={0} />
               </mesh>
-              {active && (
-                <mesh scale={[1.06, 1.06, 1.06]}>
-                  <sphereGeometry args={[UNIFORM_PLANET_SIZE * 0.52, 32, 32]} />
-                  <meshBasicMaterial
-                    color="#ffffff"
-                    transparent
-                    opacity={0.05}
-                    side={THREE.BackSide}
-                    depthWrite={false}
-                  />
-                </mesh>
-              )}
+              <mesh
+                ref={activeRingRef}
+                visible={active}
+                scale={[1.06, 1.06, 1.06]}
+                raycast={() => null}
+              >
+                <sphereGeometry args={[UNIFORM_PLANET_SIZE * 0.52, 32, 32]} />
+                <meshBasicMaterial
+                  color="#ffffff"
+                  transparent
+                  opacity={0.05}
+                  side={THREE.BackSide}
+                  depthWrite={false}
+                />
+              </mesh>
             </group>
           ) : null}
         </group>
@@ -181,7 +209,7 @@ export default function Planet({ type, orbitRadius, orbitAngle, orbitY, orbitSpe
         <group ref={mediumRef} visible={false}>
           <mesh
             onClick={(e) => { e.stopPropagation(); onClick(); }}
-            onPointerOver={() => { document.body.style.cursor = 'pointer'; }}
+            onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; }}
             onPointerOut={() => { document.body.style.cursor = 'auto'; }}
           >
             <sphereGeometry args={[UNIFORM_PLANET_SIZE * 0.88 * (cfg.modelScale || 1), 16, 16]} />
@@ -192,7 +220,7 @@ export default function Planet({ type, orbitRadius, orbitAngle, orbitY, orbitSpe
         <group ref={lowRef} visible={false}>
           <mesh
             onClick={(e) => { e.stopPropagation(); onClick(); }}
-            onPointerOver={() => { document.body.style.cursor = 'pointer'; }}
+            onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; }}
             onPointerOut={() => { document.body.style.cursor = 'auto'; }}
           >
             <sphereGeometry args={[UNIFORM_PLANET_SIZE * 0.74 * (cfg.modelScale || 1), 8, 8]} />

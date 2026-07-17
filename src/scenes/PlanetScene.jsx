@@ -18,7 +18,15 @@ const MIN_ORBIT_RADIUS = 30;
 const MAX_ORBIT_RADIUS = 100;
 const ORBIT_VERTICAL_SPREAD = 1.2;
 const SINGLE_RING_VARIATION = 2.0;
-const ORBIT_HEIGHTS = [0.8, -0.4, 0.7, -0.2, 0.4];
+
+// Rebalanced: webdev was sitting right on the ship's spawn axis (angle 0, radius 30,
+// z=0) and electronics was cramped against leadership on the far side of the ring.
+// Angles are now offset by +26° and radius has a small per-planet jitter so the ring
+// reads as a real orbit instead of a flat pentagon. Heights unchanged in spirit, just
+// re-ordered to match.
+const ORBIT_ANGLE_OFFSET = Math.PI * (26 / 180); // shifts the whole ring off the spawn axis
+const ORBIT_RADIUS_JITTER = [0, 6, -4, 10, -6];   // per-planet radius nudge (webdev..leadership)
+const ORBIT_HEIGHTS = [0.9, -0.4, 0.7, -0.5, 0.4];
 
 const WIDE_CAM = { x: 0, y: 18, z: 220 };
 const WIDE_LOOK = { x: 0, y: 1.8, z: -90 };
@@ -29,10 +37,18 @@ const CAMERA_OVERVIEW_OFFSET = { x: 0, y: 3.2, z: 16 };
 const FLIGHT_SPEED = 0.32;
 const ARRIVAL_RADIUS_XY = 2.4;
 const ARRIVAL_RADIUS_Z = 8;
-const Z_MIN = -1000;                 
-const Z_MAX = 10;                    
-const X_LIMIT = 300;                 
+const Z_MIN = -1000;
+const Z_MAX = 10;
+const X_LIMIT = 300;
 const Y_LIMIT = 100;
+
+// How many consecutive frames the "nearest planet" has to agree before we actually
+// fire onSelectPlanet. This kills the flicker-triggered re-selection that was
+// restarting the GSAP camera/ship tweens every frame near a planet's boundary.
+const SELECT_HYSTERESIS_FRAMES = 6;
+// Only rescan for the nearest planet every N frames instead of every frame — the
+// approach targets don't move fast enough to need a check at full framerate.
+const AUTO_SELECT_SCAN_INTERVAL = 3;
 
 const KEY_MAP = {
   KeyW: 'forward', ArrowUp: 'forward',
@@ -44,28 +60,30 @@ const KEY_MAP = {
   Space: 'boost',
 };
 
-// ---------- helper ----------
-function getOrbitPosition(planet, time = 0) {
+// ---------- helpers (now accept an optional target Vector3 to write into,
+// so hot-path callers can reuse a scratch vector instead of allocating) ----------
+function getOrbitPosition(planet, time = 0, target = new Vector3()) {
   const angle = planet.angle + planet.orbitSpeed * time;
   const x = planet.radius * Math.cos(angle);
   const z = planet.radius * Math.sin(angle);
   const y = Math.max(-1.8, Math.min(1.8, planet.y + Math.sin(time * 0.35 + planet.index) * 0.45));
-  return new Vector3(x, y, z);
+  return target.set(x, y, z);
 }
 
-function getApproachTarget(planet, shipPosition, time = 0) {
-  const center = getOrbitPosition(planet, time);
-  const shipPoint = new Vector3(shipPosition.x, shipPosition.y, shipPosition.z);
-  const approachDir = shipPoint.clone().sub(center);
+const _approachCenter = new Vector3();
+const _approachDir = new Vector3();
+function getApproachTarget(planet, shipPosition, time = 0, target = new Vector3()) {
+  const center = getOrbitPosition(planet, time, _approachCenter);
+  _approachDir.set(shipPosition.x - center.x, shipPosition.y - center.y, shipPosition.z - center.z);
 
-  if (approachDir.lengthSq() < 0.0001) {
-    approachDir.set(0, 0, -1);
+  if (_approachDir.lengthSq() < 0.0001) {
+    _approachDir.set(0, 0, -1);
   } else {
-    approachDir.normalize();
+    _approachDir.normalize();
   }
 
   const radius = PLANET_CONFIGS[planet.type]?.radius || 2.0;
-  return center.clone().add(approachDir.multiplyScalar(radius + 8));
+  return target.copy(center).addScaledVector(_approachDir, radius + 8);
 }
 
 // ---------- main component ----------
@@ -97,6 +115,11 @@ export default function PlanetScene({
   const pressedKeys = useRef(new Set());
   const manualControlActive = useRef(false);
   const lastAutoSelected = useRef(null);
+  // hysteresis bookkeeping for auto-select
+  const pendingSelectIndex = useRef(null);
+  const pendingSelectStreak = useRef(0);
+  const frameCounter = useRef(0);
+
   const shipRotation = useRef({ yaw: Math.PI, pitch: 0 });
   const shipEuler = useMemo(() => new Euler(0, 0, 0, 'YXZ'), []);
   const shipDirection = useMemo(() => new Vector3(0, 0, -1), []);
@@ -104,6 +127,22 @@ export default function PlanetScene({
   const focusPoint = useRef(new Vector3(0, 0, 0));
   const shipVelocity = useRef(new Vector3());
   const cameraTarget = useRef(new Vector3(0, 0, 0));
+
+  // Scratch vectors reused every frame instead of `new Vector3()` per call —
+  // this was the main source of per-frame GC churn while flying/hovering.
+  const scratch = useRef({
+    forward: new Vector3(),
+    right: new Vector3(),
+    up: new Vector3(0, 1, 0),
+    moveDirection: new Vector3(),
+    planetPos: new Vector3(),
+    lookAtTarget: new Vector3(),
+    desiredCamPos: new Vector3(),
+    focus: new Vector3(),
+    approachTarget: new Vector3(),
+    shipPosFallback: new Vector3(0, -1, 4),
+  }).current;
+
   const planetOrbitData = useMemo(() => {
     return PLANET_TYPES.map((type, index) => ({
       type,
@@ -112,8 +151,8 @@ export default function PlanetScene({
         MIN_ORBIT_RADIUS,
         MAX_ORBIT_RADIUS,
         index / Math.max(PLANET_TYPES.length - 1, 1)
-      ),
-      angle: index * (Math.PI * 2 / PLANET_TYPES.length),
+      ) + (ORBIT_RADIUS_JITTER[index] ?? 0),
+      angle: ORBIT_ANGLE_OFFSET + index * (Math.PI * 2 / PLANET_TYPES.length),
       y: ORBIT_HEIGHTS[index] ?? (index % 2 ? 0.8 : -0.8),
       orbitSpeed: 0.012 + index * 0.0035,
     }));
@@ -272,30 +311,31 @@ export default function PlanetScene({
     });
   }, [activePlanet, planetOrbitData]);
 
-  // ----- Main frame loop (updated with direct velocity control) -----
+  // ----- Main frame loop (reuses scratch vectors, throttled + debounced auto-select) -----
   useFrame((state, delta) => {
+    frameCounter.current++;
+
     const keys = pressedKeys.current;
     const baseSpeed = FLIGHT_SPEED * (delta * 60);
     const boostFactor = keys.has('boost') ? 1.8 : 1;
     const thrust = baseSpeed * boostFactor;
 
     shipEuler.set(shipRotation.current.pitch, shipRotation.current.yaw, 0);
-    const forward = new Vector3(0, 0, -1).applyEuler(shipEuler);
-    const right = new Vector3(1, 0, 0).applyEuler(shipEuler);
-    const up = new Vector3(0, 1, 0);
+    scratch.forward.set(0, 0, -1).applyEuler(shipEuler);
+    scratch.right.set(1, 0, 0).applyEuler(shipEuler);
     shipDirection.set(0, 0, -1).applyEuler(shipEuler);
 
-    const moveDirection = new Vector3();
-    if (keys.has('forward')) moveDirection.add(forward);
-    if (keys.has('back')) moveDirection.sub(forward);
-    if (keys.has('left')) moveDirection.sub(right);
-    if (keys.has('right')) moveDirection.add(right);
-    if (keys.has('up')) moveDirection.add(up);
-    if (keys.has('down')) moveDirection.sub(up);
+    scratch.moveDirection.set(0, 0, 0);
+    if (keys.has('forward')) scratch.moveDirection.add(scratch.forward);
+    if (keys.has('back')) scratch.moveDirection.sub(scratch.forward);
+    if (keys.has('left')) scratch.moveDirection.sub(scratch.right);
+    if (keys.has('right')) scratch.moveDirection.add(scratch.right);
+    if (keys.has('up')) scratch.moveDirection.add(scratch.up);
+    if (keys.has('down')) scratch.moveDirection.sub(scratch.up);
 
-    if (moveDirection.lengthSq() > 0.0001) {
+    if (scratch.moveDirection.lengthSq() > 0.0001) {
       manualControlActive.current = true;
-      shipVelocity.current.copy(moveDirection.normalize().multiplyScalar(thrust));
+      shipVelocity.current.copy(scratch.moveDirection.normalize().multiplyScalar(thrust));
     } else {
       shipVelocity.current.multiplyScalar(0.92);
       if (shipVelocity.current.length() < 0.01) shipVelocity.current.set(0, 0, 0);
@@ -317,31 +357,33 @@ export default function PlanetScene({
       shipRef.current.rotation.set(shipRotation.current.pitch, shipRotation.current.yaw, 0);
     }
 
-    const shipPos = shipRef.current?.position || new Vector3(0, -1, 4);
+    const shipPos = shipRef.current?.position || scratch.shipPosFallback;
     const time = state.clock.getElapsedTime();
     const targetPlanet = activePlanet !== null ? planetOrbitData[activePlanet] : null;
     const isPlanetView = targetPlanet !== null;
 
     if (isPlanetView) {
-      const planetPos = getOrbitPosition(targetPlanet, time);
-      const lookAtTarget = planetPos.clone().add(new Vector3(0, 0.5, 0));
-      cameraTarget.current.lerp(lookAtTarget, 0.16);
-      const desiredCamPos = planetPos.clone().add(new Vector3(0, 6, 18));
-      camRef.current.position.lerp(desiredCamPos, 0.12);
+      const planetPos = getOrbitPosition(targetPlanet, time, scratch.planetPos);
+      scratch.lookAtTarget.copy(planetPos).add({ x: 0, y: 0.5, z: 0 });
+      cameraTarget.current.lerp(scratch.lookAtTarget, 0.16);
+      scratch.desiredCamPos.copy(planetPos).add({ x: 0, y: 6, z: 18 });
+      camRef.current.position.lerp(scratch.desiredCamPos, 0.12);
       camRef.current.lookAt(cameraTarget.current);
     } else {
-      const focus = shipPos.clone().add(shipDirection.clone().multiplyScalar(14)).add(new Vector3(0, 2.2, 0));
-      cameraTarget.current.lerp(focus, 0.08);
-      const desiredCamPos = shipPos.clone().add(shipCamOffset.clone().applyEuler(shipEuler)).add(new Vector3(0, 0.25, 0));
-      camRef.current.position.lerp(desiredCamPos, 0.1);
+      scratch.focus.copy(shipPos).addScaledVector(shipDirection, 14).add({ x: 0, y: 2.2, z: 0 });
+      cameraTarget.current.lerp(scratch.focus, 0.08);
+      scratch.desiredCamPos.copy(shipCamOffset).applyEuler(shipEuler).add(shipPos).add({ x: 0, y: 0.25, z: 0 });
+      camRef.current.position.lerp(scratch.desiredCamPos, 0.1);
       camRef.current.lookAt(cameraTarget.current);
     }
 
-    // 5. Auto‑select planet when close
-    if (manualControlActive.current) {
+    // 5. Auto‑select planet when close — throttled to every N frames, and debounced
+    // so a single flickering frame near a boundary doesn't restart the selection
+    // tweens. This was the main cause of the freeze-on-hover near planet edges.
+    if (manualControlActive.current && frameCounter.current % AUTO_SELECT_SCAN_INTERVAL === 0) {
       let nearestIndex = null;
       for (let i = 0; i < planetOrbitData.length; i++) {
-        const target = getApproachTarget(planetOrbitData[i], shipPosRef.current, time);
+        const target = getApproachTarget(planetOrbitData[i], shipPosRef.current, time, scratch.approachTarget);
         const dxy = Math.hypot(shipPos.x - target.x, shipPos.y - target.y);
         const dz = Math.abs(shipPos.z - target.z);
         if (dxy < ARRIVAL_RADIUS_XY && dz < ARRIVAL_RADIUS_Z) {
@@ -349,7 +391,18 @@ export default function PlanetScene({
           break;
         }
       }
-      if (nearestIndex !== lastAutoSelected.current) {
+
+      if (nearestIndex === pendingSelectIndex.current) {
+        pendingSelectStreak.current++;
+      } else {
+        pendingSelectIndex.current = nearestIndex;
+        pendingSelectStreak.current = 1;
+      }
+
+      if (
+        pendingSelectStreak.current >= SELECT_HYSTERESIS_FRAMES &&
+        nearestIndex !== lastAutoSelected.current
+      ) {
         lastAutoSelected.current = nearestIndex;
         onSelectPlanet(nearestIndex);
       }
