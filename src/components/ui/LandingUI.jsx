@@ -344,7 +344,7 @@ export default function LandingUI({ onLaunch, onResume, onContact }) {
               e.currentTarget.style.boxShadow = '0 18px 40px rgba(0,0,0,0.28), 0 0 18px rgba(0,212,255,0.1)';
             }}
           >
-            <Rocket size={25} strokeWidth={0.7} /> BETA
+            <Rocket size={25} strokeWidth={0.7} /> LAUNCH
           </button>
 
         </div>
