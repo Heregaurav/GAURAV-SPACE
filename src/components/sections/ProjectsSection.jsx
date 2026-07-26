@@ -142,7 +142,7 @@ function ProjectCard({ project }) {
       <h3
         style={{
           fontFamily: FONT.display,
-          fontSize: '19px',
+          fontSize: '22px',
           fontWeight: 800,
           color: COLORS.textPrimary,
           margin: '0 0 10px',
@@ -154,7 +154,7 @@ function ProjectCard({ project }) {
       <p
         style={{
           fontFamily: FONT.body,
-          fontSize: '13.5px',
+          fontSize: '15px',
           lineHeight: 1.7,
           color: COLORS.textDim,
           margin: '0 0 18px',
@@ -170,12 +170,12 @@ function ProjectCard({ project }) {
             key={s}
             style={{
               fontFamily: FONT.mono,
-              fontSize: '9.5px',
-              letterSpacing: '0.5px',
+              fontSize: '12px',
+              letterSpacing: '1px',
               padding: '4px 8px',
               borderRadius: '4px',
               border: `1px solid ${COLORS.line}`,
-              color: 'rgba(255,255,255,0.55)',
+              color: 'rgba(189, 183, 183, 0.55)',
             }}
           >
             {s}
@@ -207,9 +207,9 @@ function ProjectCard({ project }) {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '8px',
               fontFamily: FONT.mono,
-              fontSize: '11px',
+              fontSize: '16px',
               letterSpacing: '1px',
               color: COLORS.neonBlue,
               textDecoration: 'none',

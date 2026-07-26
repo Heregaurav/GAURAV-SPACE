@@ -280,3 +280,19 @@ html, body {
     font-size: 10px;
   }
 }
+.reveal-card{
+    opacity:0;
+    transform:translateY(40px);
+    filter:blur(8px);
+
+    transition:
+        opacity .8s ease,
+        transform .8s cubic-bezier(.22,1,.36,1),
+        filter .8s ease;
+}
+
+.reveal-card.visible{
+    opacity:1;
+    transform:translateY(0);
+    filter:blur(0);
+}
