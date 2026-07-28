@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Code2,
   Server,
@@ -74,63 +74,156 @@ const CATEGORIES = [
   },
 ];
 
-// One full orbit revolution, in seconds. Kept constant across cards so the
-// motion feels consistent regardless of how many skills a category has.
-const ORBIT_DURATION = 26;
+// Phyllotaxis (sunflower-seed) spacing angle in degrees. Placing items at
+// i * GOLDEN_ANGLE with a radius that grows as sqrt(i) scatters N points
+// across a disc so none of them land on top of each other — no
+// collision-detection loop needed, and it never looks like a ring.
+const GOLDEN_ANGLE = 137.508;
+const GLOBE_SIZE = 150;
 
-function FocusOrbit({ category }) {
-  const { icon: Icon, label, subtitle, items } = category;
-  // Radius must always clear the center card (230px wide, so ~115px half-width)
-  // plus room for a pill — otherwise low-item categories place tags behind the card.
-  const radius = Math.max(190, Math.min(240, 150 + items.length * 9));
-  const stageSize = radius * 2 + 170;
+function rand(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function generateStars(count) {
+  return Array.from({ length: count }).map(() => ({
+    xPct: rand(4, 96),
+    yPct: rand(4, 96),
+    size: rand(1.2, 2.6),
+    duration: rand(2.5, 5.5),
+    delay: rand(-5, 0),
+  }));
+}
+
+// Wireframe "hologram" globe: latitude ellipses sized by the sphere's true
+// cross-section at each height (sqrt(r^2 - h^2)), plus a few meridian
+// ellipses at different rx to suggest longitude lines curving around it.
+function HoloGlobe({ size }) {
+  const r = size / 2 - 8;
+  const c = size / 2;
+  const flatten = 0.3;
+  const latOffsets = [-0.72, -0.4, 0, 0.4, 0.72];
+  const lonRxFractions = [1, 0.72, 0.36, 0.02];
 
   return (
-    <div
-      style={{
-        position: "relative",
-        width: stageSize,
-        height: stageSize,
-        maxWidth: "120vw",
-        maxHeight: "120vw",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      {/* faint dashed orbit path */}
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible" }}>
+      <defs>
+        <filter id="holo-glow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="3.2" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <g stroke="rgba(0,212,255,.8)" strokeWidth="1" fill="none" filter="url(#holo-glow)">
+        <circle cx={c} cy={c} r={r} strokeWidth="1.3" stroke="rgba(0,212,255,.95)" />
+        {latOffsets.map((f, i) => {
+          const h = f * r;
+          const rx = Math.sqrt(Math.max(r * r - h * h, 0));
+          return <ellipse key={`lat-${i}`} cx={c} cy={c + h} rx={rx} ry={rx * flatten} />;
+        })}
+        {lonRxFractions.map((f, i) => (
+          <ellipse key={`lon-${i}`} cx={c} cy={c} rx={r * f} ry={r} />
+        ))}
+      </g>
+    </svg>
+  );
+}
+
+function FocusField({ category }) {
+  const { label, items } = category;
+
+  // Band the pills scatter within — min keeps them clear of the globe +
+  // its glow halo, max scales up a bit with item count for busier lists.
+  const maxRadius = Math.max(190, Math.min(250, 150 + items.length * 10));
+  const minRadius = 130;
+  const fieldSize = maxRadius * 2 + 180;
+
+  // One fixed, non-overlapping spot per pill (sunflower layout), plus a
+  // small independent drift/rotation range so each pill wobbles on its own
+  // timing — recomputed whenever the hovered category changes.
+  const placements = useMemo(
+    () =>
+      items.map((item, i) => {
+        const t = (i + 0.5) / items.length;
+        const rr = minRadius + (maxRadius - minRadius) * Math.sqrt(t);
+        const angle = (i * GOLDEN_ANGLE * Math.PI) / 180;
+        return {
+          item,
+          x: rr * Math.cos(angle),
+          y: rr * Math.sin(angle),
+          fx0: rand(-9, 9),
+          fy0: rand(-9, 9),
+          fx1: rand(-9, 9),
+          fy1: rand(-9, 9),
+          fr0: rand(-5, 5),
+          fr1: rand(-5, 5),
+          duration: rand(5, 9),
+          delay: rand(-9, 0),
+        };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items]
+  );
+
+  // Stable starfield — generated once and reused across every category so
+  // the backdrop doesn't jump each time a different card is hovered.
+  const [stars] = useState(() => generateStars(20));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
       <div
         style={{
-          position: "absolute",
-          width: radius * 2,
-          height: radius * 2,
-          borderRadius: "50%",
-          border: "1px dashed rgba(255,255,255,.10)",
+          position: "relative",
+          width: fieldSize,
+          height: fieldSize,
+          maxWidth: "110vw",
+          maxHeight: "110vw",
         }}
-      />
-
-      {/* rotating ring — each child counter-rotates to stay upright */}
-      <div
-        className="tech-orbit-ring"
-        style={{ position: "absolute", inset: 0, animationDuration: `${ORBIT_DURATION}s` }}
       >
-        {items.map((item, i) => {
-          const angle = (360 / items.length) * i;
-          return (
-            <div
-              key={item}
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: `rotate(${angle}deg) translateX(${radius}px)`,
-              }}
-            >
+        {/* faint twinkling stars */}
+        {stars.map((s, i) => (
+          <div
+            key={i}
+            className="tech-star"
+            style={{
+              position: "absolute",
+              left: `${s.xPct}%`,
+              top: `${s.yPct}%`,
+              width: s.size,
+              height: s.size,
+              borderRadius: "50%",
+              background: "rgba(180,240,255,.9)",
+              animationDuration: `${s.duration}s`,
+              animationDelay: `${s.delay}s`,
+            }}
+          />
+        ))}
+
+        {/* scattered, independently floating pills */}
+        {placements.map((p) => (
+          <div
+            key={p.item}
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: `translate(${p.x}px, ${p.y}px)`,
+            }}
+          >
+            <div style={{ transform: "translate(-50%,-50%)" }}>
               <div
-                className="tech-orbit-item-inner"
+                className="tech-float-item"
                 style={{
-                  animationDuration: `${ORBIT_DURATION}s`,
-                  transform: `translate(-50%,-50%) rotate(${-angle}deg)`,
+                  "--fx0": `${p.fx0}px`,
+                  "--fy0": `${p.fy0}px`,
+                  "--fx1": `${p.fx1}px`,
+                  "--fy1": `${p.fy1}px`,
+                  "--fr0": `${p.fr0}deg`,
+                  "--fr1": `${p.fr1}deg`,
+                  animationDuration: `${p.duration}s`,
+                  animationDelay: `${p.delay}s`,
                 }}
               >
                 <span
@@ -147,58 +240,77 @@ function FocusOrbit({ category }) {
                     boxShadow: "0 0 18px rgba(0,212,255,.25)",
                   }}
                 >
-                  {item}
+                  {p.item}
                 </span>
               </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
+
+        {/* holographic globe, centered in the field */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%,-50%)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              width: GLOBE_SIZE,
+              height: GLOBE_SIZE,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <div className="tech-globe-halo" />
+            <div className="tech-globe-spin">
+              <HoloGlobe size={GLOBE_SIZE} />
+            </div>
+          </div>
+          <div
+            style={{
+              marginTop: 16,
+              fontFamily: FONT.display,
+              fontSize: 17,
+              fontWeight: 700,
+              letterSpacing: 0.3,
+              color: COLORS.textPrimary,
+              textShadow: "0 0 14px rgba(0,212,255,.55)",
+            }}
+          >
+            {label}
+          </div>
+        </div>
       </div>
 
-      {/* center card */}
+      {/* beam connecting the globe down to the platform */}
       <div
         style={{
-          position: "relative",
-          zIndex: 2,
-          width: 150,
-          padding: "30px 24px",
-          borderRadius: 20,
-          background: "rgba(8,10,16,.88)",
-          border: "1px solid rgba(0,212,255,.3)",
-          boxShadow: "0 0 50px rgba(0,212,255,.2), 0 30px 60px rgba(0,0,0,.5)",
-          textAlign: "center",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 12,
+          width: 3,
+          height: 56,
+          background: "linear-gradient(to bottom, rgba(0,212,255,.55), rgba(0,212,255,.05))",
         }}
-      >
-        <div
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 16,
-            background: "rgba(0,212,255,.12)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "1px solid rgba(0,212,255,.3)",
-          }}
-        >
-          <Icon size={16} color={COLORS.neonBlue} />
-        </div>
-        <div
-          style={{
-            fontFamily: FONT.display,
-            fontSize: 20,
-            fontWeight: 700,
-            color: COLORS.textPrimary,
-          }}
-        >
-          {label}
-        </div>
-
-      </div>
+      />
+      {/* holographic projection platform */}
+      <div
+        className="tech-hologram-pulse"
+        style={{
+          width: 230,
+          height: 60,
+          marginTop: -8,
+          borderRadius: "50%",
+          background:
+            "radial-gradient(ellipse at center, rgba(0,212,255,.35) 0%, rgba(0,212,255,.12) 45%, transparent 75%)",
+          filter: "blur(2px)",
+        }}
+      />
     </div>
   );
 }
@@ -227,16 +339,51 @@ export default function TechnologiesSection() {
       description="A collection of technologies I've explored through projects, coursework, and continuous learning."
     >
       <style>{`
-        @keyframes tech-orbit-spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+        @keyframes tech-float {
+          0%   { transform: translate(var(--fx0,0px), var(--fy0,0px)) rotate(var(--fr0,0deg)); }
+          50%  { transform: translate(var(--fx1,0px), var(--fy1,0px)) rotate(var(--fr1,0deg)); }
+          100% { transform: translate(var(--fx0,0px), var(--fy0,0px)) rotate(var(--fr0,0deg)); }
         }
-        @keyframes tech-orbit-spin-reverse {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(-360deg); }
+        .tech-float-item {
+          animation-name: tech-float;
+          animation-timing-function: ease-in-out;
+          animation-iteration-count: infinite;
         }
-        .tech-orbit-ring { animation-name: tech-orbit-spin; animation-timing-function: linear; animation-iteration-count: infinite; }
-        .tech-orbit-item-inner { animation-name: tech-orbit-spin-reverse; animation-timing-function: linear; animation-iteration-count: infinite; }
+
+        @keyframes tech-globe-spin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+        .tech-globe-spin {
+          animation: tech-globe-spin 26s linear infinite;
+          transform-origin: 50% 50%;
+        }
+
+        @keyframes tech-hologram-pulse {
+          0%, 100% { opacity: .55; transform: scale(1); }
+          50%      { opacity: .9;  transform: scale(1.06); }
+        }
+        .tech-globe-halo {
+          position: absolute;
+          inset: -26px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(0,212,255,.3) 0%, rgba(0,212,255,.08) 45%, transparent 72%);
+          filter: blur(6px);
+          animation: tech-hologram-pulse 3.2s ease-in-out infinite;
+        }
+        .tech-hologram-pulse {
+          animation: tech-hologram-pulse 3.2s ease-in-out infinite;
+        }
+
+        @keyframes tech-star-twinkle {
+          0%, 100% { opacity: .15; transform: scale(1); }
+          50%      { opacity: .95; transform: scale(1.4); }
+        }
+        .tech-star {
+          animation-name: tech-star-twinkle;
+          animation-timing-function: ease-in-out;
+          animation-iteration-count: infinite;
+        }
 
         .tech-card {
           transition: transform .35s ease, border-color .35s ease, box-shadow .35s ease, opacity .35s ease, filter .35s ease;
@@ -275,7 +422,9 @@ export default function TechnologiesSection() {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .tech-orbit-ring, .tech-orbit-item-inner { animation: none; }
+          .tech-float-item, .tech-hologram-pulse, .tech-globe-halo, .tech-globe-spin, .tech-star {
+            animation: none;
+          }
         }
       `}</style>
 
@@ -385,10 +534,10 @@ export default function TechnologiesSection() {
         })}
       </div>
 
-      {/* Focus overlay: blurred backdrop + centered orbit, driven by hover state */}
+      {/* Focus overlay: blurred backdrop + centered holographic field, driven by hover state */}
       <div className={`tech-focus-backdrop${hovered ? " is-active" : ""}`} />
       <div className={`tech-focus-stage${hovered ? " is-active" : ""}`}>
-        {displayed && <FocusOrbit category={displayed} />}
+        {displayed && <FocusField category={displayed} />}
       </div>
     </SectionWrapper>
   );
