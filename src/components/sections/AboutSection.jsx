@@ -308,7 +308,7 @@ export default function AboutSection() {
             ))}
           </div>
 
-          <div
+          {/* <div
             style={{
               fontFamily: FONT.mono,
               fontSize: '11px',
@@ -320,8 +320,8 @@ export default function AboutSection() {
             }}
           >
             Focus &amp; beyond the screen
-          </div>
-          {NOTES.map((note, i) => (
+          </div> */}
+          {/* {NOTES.map((note, i) => (
             <div className="about2-note-row" key={note.text}>
               <span
                 style={{
@@ -337,7 +337,7 @@ export default function AboutSection() {
                 {note.text}
               </span>
             </div>
-          ))}
+          ))} */}
         </div>
 
         {/* ---------------- RIGHT: animated orbit signature ---------------- */}
