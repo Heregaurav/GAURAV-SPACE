@@ -24,8 +24,8 @@ export default function ScrollSections() {
       <div style={{ position: 'relative', isolation: 'isolate' }}>
         <div style={{ position: 'relative', zIndex: 1 }}>
           <AboutSection />
-          <ProjectsSection />
           <CodingProfileSection />
+          <ProjectsSection />
           <TechnologiesSection />
           <ExperienceSection />
           <ExtracurricularsSection />
