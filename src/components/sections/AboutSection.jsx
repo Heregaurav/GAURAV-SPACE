@@ -11,8 +11,8 @@ const INK = {
   dim: 'rgba(255,255,255,0.62)',
   faint: 'rgba(255,255,255,0.40)',
 };
-const ACCENT = '#D9CFBE'; // muted warm platinum — the single signature color
-const ACCENT_COOL = '#8FA8C4'; // secondary cool accent, used sparingly for depth
+const ACCENT = '#b5f4f7'; // muted warm platinum — the single signature color
+const ACCENT_COOL = '#d4d0d0'; // secondary cool accent, used sparingly for depth
 
 export default function AboutSection() {
   const FACTS = [

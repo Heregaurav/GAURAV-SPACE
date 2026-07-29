@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ExternalLink,
   Code2,
@@ -109,10 +109,8 @@ const PROJECTS = [
   },
 ];
 
-const MAX_PEEK = 2;
-
-const CARD_WIDTH = 'min(640px, 92vw)';
-const CARD_HEIGHT = 'min(460px, 72vh)';
+const CARD_WIDTH = 'clamp(320px, 92vw, 640px)';
+const CARD_HEIGHT = 'clamp(420px, 72vh, 460px)';
 
 const cardFaceBase = {
   ...glassPanel,
@@ -141,19 +139,107 @@ function useIsMobile(breakpoint = 640) {
   return isMobile;
 }
 
-// Cards further back in the "notebook" — fanned out and tilted like pages
-// sitting under the open cover, with a faint spine edge so it reads as
-// pages rather than a flat drop-shadow stack. Clicking one brings it front.
-function PeekCard({ project, depth, onSelect, isMobile }) {
-  const Icon = project.icon;
-  const hidden = depth > MAX_PEEK;
+// Very small phones (iPhone SE etc.) need one more notch down from the
+// general "isMobile" treatment — tighter paddings, smaller fan offsets.
+function useIsCompact(breakpoint = 380) {
+  const [isCompact, setIsCompact] = useState(
+    typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
+  );
+  useEffect(() => {
+    const onResize = () => setIsCompact(window.innerWidth <= breakpoint);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [breakpoint]);
+  return isCompact;
+}
 
-  // alternate the fan direction so pages splay left/right like an open book
-  const dir = depth % 2 === 0 ? 1 : -1;
-  const offsetY = (isMobile ? 10 : 16) * depth;
-  const rotate = dir * (isMobile ? 1.6 : 2.2) * depth;
-  const shiftX = dir * (isMobile ? 5 : 8) * depth;
-  const scale = 1 - depth * (isMobile ? 0.03 : 0.04);
+// Tap = flip to the back. Double-tap (a second tap landing within the
+// window) = flip back to the front. Works for both touch and mouse since
+// it's driven off plain onClick rather than the native dblclick event,
+// which mobile browsers don't reliably synthesize from two taps.
+function useTapToFlip(delay = 350) {
+  const [flipped, setFlipped] = useState(false);
+  const lastTapRef = useRef(0);
+
+  const onCardTap = (e) => {
+    // Ignore taps that originated on an interactive child (links/buttons
+    // already stopPropagation, but this is a safety net).
+    if (e.target.closest('a,button')) return;
+
+    const now = Date.now();
+    const isDoubleTap = now - lastTapRef.current < delay;
+    lastTapRef.current = now;
+
+    if (!flipped) {
+      setFlipped(true);
+    } else if (isDoubleTap) {
+      setFlipped(false);
+    }
+  };
+
+  return { flipped, onCardTap };
+}
+
+// True Cover Flow / VisionOS carousel math: cards sit at even angular
+// steps around a large invisible cylinder, facing its center. Position
+// comes from the cylinder itself — x = radius·sin(angle), z =
+// radius·(cos(angle) − 1) — so x and z both grow with angle instead of
+// being independently guessed numbers that happened to sit too close
+// together. rotateY matches the angle so each card stays tangent to the
+// cylinder and faces the viewer, the way album covers do in Cover Flow.
+function getStackConfig(isMobile, isCompact) {
+  if (isCompact) {
+    return {
+      maxPeek: 1,
+      angleStep: 34,
+      radius: 230,
+      scale: [1, 0.86, 0.74],
+      opacity: [1, 0.85, 0.6],
+    };
+  }
+  if (isMobile) {
+    return {
+      maxPeek: 2,
+      angleStep: 40,
+      radius: 430,
+      scale: [1, 0.87, 0.75],
+      opacity: [1, 0.87, 0.62],
+    };
+  }
+  return {
+    maxPeek: 2,
+    angleStep: 42,
+    radius: 860,
+    scale: [1, 0.88, 0.76],
+    opacity: [1, 0.88, 0.65],
+  };
+}
+
+// A card sitting further around the invisible cylinder from the active
+// one — genuinely displaced in both X and Z (not just rotated in place),
+// so it reads as its own floating card rather than a rectangle stacked
+// behind the front one. Clicking any visible card brings it to the
+// front; since the element itself never unmounts, the transform/opacity
+// changes animate smoothly around the whole cylinder rather than
+// swapping instantly.
+function StackCard({ project, depth, direction, config, onSelect, isCompact }) {
+  const Icon = project.icon;
+  const i = Math.min(depth, 2);
+  const hidden = depth > config.maxPeek;
+
+  // Real angular position around the cylinder — using the actual depth
+  // (not clamped) keeps the motion continuous even for cards past
+  // maxPeek, so nothing jumps when a card crosses the visibility edge.
+  const angleDeg = depth * config.angleStep;
+  const angleRad = -(angleDeg * Math.PI) / 180;
+  const tx = direction * config.radius * Math.sin(angleRad);
+  const tz = config.radius * (Math.cos(angleRad) - 1);
+  // Facing the cylinder's center, mirrored by side — this is what keeps
+  // each card tangent to the curve instead of just spinning in place.
+  const rotateY = -direction * angleDeg;
+  const scale = config.scale[i];
+  const opacity = hidden ? 0 : config.opacity[i];
+  const titleSize = i === 0 ? 'clamp(30px,6.4vw,50px)' : i === 1 ? 'clamp(22px,4.6vw,36px)' : 'clamp(17px,3.6vw,26px)';
 
   return (
     <div
@@ -168,111 +254,88 @@ function PeekCard({ project, depth, onSelect, isMobile }) {
         ...glassPanel,
         position: 'absolute',
         left: '50%',
-        top: offsetY,
+        top: 0,
         width: CARD_WIDTH,
         height: CARD_HEIGHT,
-        zIndex: 10 - depth,
-        transformOrigin: 'bottom center',
-        transform: `translateX(calc(-50% + ${shiftX}px)) rotate(${rotate}deg) scale(${scale})`,
-        opacity: hidden ? 0 : Math.max(1 - depth * 0.18, 0.55),
+        zIndex: 50 - i,
+        transformStyle: 'preserve-3d',
+        transform: `translateX(-50%) translate3d(${tx}px, 0px, ${tz}px) rotateY(${rotateY}deg) scale(${scale})`,
+        opacity,
         pointerEvents: hidden ? 'none' : 'auto',
         transition:
-          'top .45s cubic-bezier(.22,1,.36,1), transform .45s cubic-bezier(.22,1,.36,1), opacity .4s ease, border-color .3s ease',
-        padding: isMobile ? '22px 22px' : '36px 40px',
+          'transform .65s cubic-bezier(.22,1,.36,1), opacity .5s ease, border-color .3s ease',
+        padding: isCompact ? '16px 16px' : '30px 34px',
         display: 'flex',
         flexDirection: 'column',
         cursor: 'pointer',
         border: `1px solid ${COLORS.line}`,
       }}
-      className="project-peek-card"
+      className="project-stack-card"
     >
-      {/* faint "page edge" strip along the left, like leaves of a notebook */}
       <div
         style={{
-          position: 'absolute',
-          left: 0,
-          top: '8%',
-          bottom: '8%',
-          width: 3,
-          borderRadius: 2,
-          background:
-            'linear-gradient(to bottom, transparent, rgba(0,212,255,0.55), transparent)',
-        }}
-      />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 18 }}>
-        <div
-          style={{
-            width: isMobile ? 40 : 48,
-            height: isMobile ? 40 : 48,
-            borderRadius: 12,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(0,212,255,0.06)',
-            border: '1px solid rgba(0,212,255,0.18)',
-            flexShrink: 0,
-          }}
-        >
-          <Icon size={isMobile ? 18 : 22} color={COLORS.neonBlue} strokeWidth={1.6} />
-        </div>
-        <div>
-          <div
-            style={{
-              fontFamily: FONT.mono,
-              fontSize: '10.5px',
-              letterSpacing: '1.5px',
-              color: COLORS.textFaint,
-              textTransform: 'uppercase',
-              marginBottom: 5,
-            }}
-          >
-            {project.tag}
-          </div>
-          <h3
-            style={{
-              fontFamily: FONT.display,
-              fontSize: 'clamp(17px,4.2vw,22px)',
-              fontWeight: 800,
-              color: COLORS.textPrimary,
-              margin: 0,
-            }}
-          >
-            {project.title}
-          </h3>
-        </div>
-      </div>
-      <p
-        style={{
-          fontFamily: FONT.body,
-          fontSize: '14px',
-          lineHeight: 1.7,
-          color: COLORS.textDim,
-          margin: 0,
-          display: '-webkit-box',
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
+          width: isCompact ? 30 : 38,
+          height: isCompact ? 30 : 38,
+          borderRadius: 10,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(0,212,255,0.06)',
+          border: '1px solid rgba(0,212,255,0.18)',
+          flexShrink: 0,
         }}
       >
-        {project.description}
-      </p>
+        <Icon size={isCompact ? 14 : 18} color={COLORS.neonBlue} strokeWidth={1.6} />
+      </div>
+
+      <div style={{ flexGrow: 1 }} />
+
+      <div
+        style={{
+          fontFamily: FONT.mono,
+          fontSize: '10px',
+          letterSpacing: '1.5px',
+          color: COLORS.textFaint,
+          textTransform: 'uppercase',
+          marginBottom: 6,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {project.tag}
+      </div>
+      <h3
+        style={{
+          fontFamily: FONT.display,
+          fontSize: titleSize,
+          fontWeight: 800,
+          letterSpacing: '-0.02em',
+          lineHeight: 0.95,
+          color: COLORS.textPrimary,
+          margin: 0,
+        }}
+      >
+        {project.title}
+      </h3>
     </div>
   );
 }
 
 // The front-of-stack project — an actual 3D flip card, like the cover of
-// the open notebook. Click the front face and it rotates around like a
-// physical page to reveal the back, which holds the full write-up, stack,
-// links, and an embedded live preview.
-function ActiveFlipCard({ project, isMobile }) {
+// the open notebook. A single tap flips it to the back; a second, quick
+// tap flips it back to the front. The back holds the full write-up,
+// stack, links, and — on every breakpoint, including phones — an
+// embedded live preview.
+function ActiveFlipCard({ project, isMobile, isCompact }) {
   const Icon = project.icon;
-  const [flipped, setFlipped] = useState(false);
+  const { flipped, onCardTap } = useTapToFlip();
   const hasLive = Boolean(project.links.live) && project.links.live !== '#';
   const [previewLoaded, setPreviewLoaded] = useState(false);
   const [previewTimedOut, setPreviewTimedOut] = useState(false);
-  // iframes are heavy and cramped on phones — skip the embed there and
-  // just surface a clear CTA to open the live site instead.
-  const showEmbeddedPreview = hasLive && !isMobile;
+  // Preview now renders on every breakpoint, including phones — the
+  // frame just gets shorter so it still fits the card.
+  const showEmbeddedPreview = hasLive;
 
   useEffect(() => {
     if (!flipped) {
@@ -292,33 +355,34 @@ function ActiveFlipCard({ project, isMobile }) {
   return (
     <div
       className="project-flip-outer"
+      onClick={onCardTap}
       style={{
         position: 'absolute',
         left: '50%',
         top: 0,
         width: CARD_WIDTH,
         height: CARD_HEIGHT,
-        transform: 'translateX(-50%)',
-        zIndex: 20,
+        transform: 'translateX(-50%) translateZ(0)',
+        zIndex: 100,
+        transformStyle: 'preserve-3d',
       }}
     >
       <div className={`project-flip-inner${flipped ? ' is-flipped' : ''}`}>
         {/* FRONT FACE */}
         <div
           className="project-flip-face"
-          onClick={() => setFlipped(true)}
           style={{
             ...cardFaceBase,
-            padding: isMobile ? '24px 22px' : '38px 40px',
+            padding: isCompact ? '18px 16px' : isMobile ? '24px 22px' : '38px 40px',
             cursor: 'pointer',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 14 : 18, marginBottom: isMobile ? 16 : 22 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isCompact ? 10 : isMobile ? 12 : 14, marginBottom: isCompact ? 10 : isMobile ? 12 : 16 }}>
             <div
               style={{
-                width: isMobile ? 46 : 56,
-                height: isMobile ? 46 : 56,
-                borderRadius: 14,
+                width: isCompact ? 32 : isMobile ? 38 : 44,
+                height: isCompact ? 32 : isMobile ? 38 : 44,
+                borderRadius: 12,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -328,46 +392,31 @@ function ActiveFlipCard({ project, isMobile }) {
                 flexShrink: 0,
               }}
             >
-              <Icon size={isMobile ? 21 : 26} color={COLORS.neonBlue} strokeWidth={1.6} />
+              <Icon size={isCompact ? 15 : isMobile ? 17 : 20} color={COLORS.neonBlue} strokeWidth={1.6} />
             </div>
-            <div style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  fontFamily: FONT.mono,
-                  fontSize: '11px',
-                  letterSpacing: '2px',
-                  color: COLORS.neonBlue,
-                  opacity: 0.85,
-                  textTransform: 'uppercase',
-                  marginBottom: 6,
-                }}
-              >
-                {project.tag}
-              </div>
-              <h3
-                style={{
-                  fontFamily: FONT.display,
-                  fontSize: 'clamp(20px,5.5vw,28px)',
-                  fontWeight: 800,
-                  color: COLORS.textPrimary,
-                  margin: 0,
-                }}
-              >
-                {project.title}
-              </h3>
+            <div
+              style={{
+                fontFamily: FONT.mono,
+                fontSize: '11px',
+                letterSpacing: '2px',
+                color: COLORS.neonBlue,
+                opacity: 0.85,
+                textTransform: 'uppercase',
+              }}
+            >
+              {project.tag}
             </div>
           </div>
 
           <p
             style={{
               fontFamily: FONT.body,
-              fontSize: 'clamp(13px,3.4vw,15px)',
-              lineHeight: 1.75,
+              fontSize: 'clamp(12.5px,3.4vw,15px)',
+              lineHeight: 1.7,
               color: COLORS.textDim,
               margin: 0,
-              flexGrow: 1,
               display: '-webkit-box',
-              WebkitLineClamp: isMobile ? 5 : 4,
+              WebkitLineClamp: isCompact ? 2 : 3,
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
             }}
@@ -375,8 +424,13 @@ function ActiveFlipCard({ project, isMobile }) {
             {project.description}
           </p>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, margin: isMobile ? '14px 0' : '20px 0' }}>
-            {project.stack.slice(0, isMobile ? 4 : 6).map((s) => (
+          {/* Flex spacer — everything above sits at the top like the
+              reference image's badge row; everything below is anchored
+              to the bottom edge as one bold caption block. */}
+          <div style={{ flexGrow: 1 }} />
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: isCompact ? 8 : 12 }}>
+            {project.stack.slice(0, isCompact ? 3 : isMobile ? 4 : 6).map((s) => (
               <span
                 key={s}
                 style={{
@@ -393,6 +447,20 @@ function ActiveFlipCard({ project, isMobile }) {
               </span>
             ))}
           </div>
+
+          <h3
+            style={{
+              fontFamily: FONT.display,
+              fontSize: 'clamp(34px,7.5vw,58px)',
+              fontWeight: 800,
+              letterSpacing: '-0.02em',
+              lineHeight: 0.95,
+              color: COLORS.textPrimary,
+              margin: '0 0 14px',
+            }}
+          >
+            {project.title}
+          </h3>
 
           <div
             style={{
@@ -412,25 +480,20 @@ function ActiveFlipCard({ project, isMobile }) {
         {/* BACK FACE */}
         <div
           className="project-flip-face project-flip-back"
-          style={{ ...cardFaceBase, padding: isMobile ? '20px 18px' : '26px 30px' }}
+          style={{ ...cardFaceBase, padding: isCompact ? '14px 12px' : isMobile ? '20px 18px' : '26px 30px' }}
         >
-          <button
-            type="button"
-            className="project-flip-back-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setFlipped(false);
-              setPreviewLoaded(false);
-            }}
+          <div
+            className="project-flip-back-hint"
+            onClick={(e) => e.stopPropagation()}
           >
-            <RotateCcw size={14} /> FLIP BACK
-          </button>
+            <RotateCcw size={13} /> DOUBLE-TAP TO FLIP BACK
+          </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: isMobile ? '2px 40px 12px 0' : '2px 46px 14px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: isCompact ? '2px 0 10px' : isMobile ? '2px 0 12px' : '2px 0 14px' }}>
             <div
               style={{
-                width: isMobile ? 34 : 38,
-                height: isMobile ? 34 : 38,
+                width: isCompact ? 30 : isMobile ? 34 : 38,
+                height: isCompact ? 30 : isMobile ? 34 : 38,
                 borderRadius: 10,
                 display: 'flex',
                 alignItems: 'center',
@@ -440,7 +503,7 @@ function ActiveFlipCard({ project, isMobile }) {
                 flexShrink: 0,
               }}
             >
-              <Icon size={isMobile ? 16 : 18} color={COLORS.neonBlue} strokeWidth={1.6} />
+              <Icon size={isCompact ? 14 : isMobile ? 16 : 18} color={COLORS.neonBlue} strokeWidth={1.6} />
             </div>
             <div style={{ minWidth: 0 }}>
               <div
@@ -457,7 +520,7 @@ function ActiveFlipCard({ project, isMobile }) {
               <h4
                 style={{
                   fontFamily: FONT.display,
-                  fontSize: isMobile ? '16px' : '18px',
+                  fontSize: isCompact ? '14px' : isMobile ? '16px' : '18px',
                   fontWeight: 800,
                   color: COLORS.textPrimary,
                   margin: '3px 0 0',
@@ -477,7 +540,7 @@ function ActiveFlipCard({ project, isMobile }) {
                 overflow: 'hidden',
                 border: `1px solid ${COLORS.line}`,
                 background: 'rgba(255,255,255,0.02)',
-                minHeight: 0,
+                minHeight: isCompact ? 120 : isMobile ? 150 : 0,
               }}
             >
               {!previewLoaded && !previewTimedOut && (
@@ -492,6 +555,8 @@ function ActiveFlipCard({ project, isMobile }) {
                     fontSize: '11px',
                     letterSpacing: '1px',
                     color: COLORS.textFaint,
+                    textAlign: 'center',
+                    padding: '0 12px',
                   }}
                 >
                   LOADING PREVIEW…
@@ -555,6 +620,7 @@ function ActiveFlipCard({ project, isMobile }) {
                     display: 'block',
                     opacity: previewLoaded ? 1 : 0,
                     transition: 'opacity .4s ease',
+                    pointerEvents: 'none',
                   }}
                 />
               )}
@@ -578,36 +644,11 @@ function ActiveFlipCard({ project, isMobile }) {
                 padding: '0 20px',
               }}
             >
-              {hasLive ? (
-                <>
-                  <span>LIVE PREVIEW OPENS BEST FULL-SCREEN</span>
-                  <a
-                    href={project.links.live}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '10px 18px',
-                      borderRadius: 999,
-                      border: `1px solid ${COLORS.neonBlue}`,
-                      color: COLORS.neonBlue,
-                      textDecoration: 'none',
-                      letterSpacing: '1.5px',
-                    }}
-                  >
-                    <ExternalLink size={13} /> OPEN LIVE SITE
-                  </a>
-                </>
-              ) : (
-                'LIVE PREVIEW NOT AVAILABLE YET'
-              )}
+              LIVE PREVIEW NOT AVAILABLE YET
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 18, marginTop: 14, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 18, marginTop: isCompact ? 10 : 14, flexShrink: 0 }}>
             {project.links.code && (
               <a
                 href={project.links.code}
@@ -628,7 +669,7 @@ function ActiveFlipCard({ project, isMobile }) {
                 <Code2 size={14} /> CODE
               </a>
             )}
-            {hasLive && !isMobile && (
+            {hasLive && (
               <a
                 href={project.links.live}
                 target="_blank"
@@ -659,6 +700,8 @@ export default function ProjectsSection() {
   const [activeIndex, setActiveIndex] = useState(0);
   const total = PROJECTS.length;
   const isMobile = useIsMobile();
+  const isCompact = useIsCompact();
+  const stackConfig = getStackConfig(isMobile, isCompact);
 
   const goPrev = () => setActiveIndex((i) => (i - 1 + total) % total);
   const goNext = () => setActiveIndex((i) => (i + 1) % total);
@@ -669,15 +712,17 @@ export default function ProjectsSection() {
       index="02"
       eyebrow="Selected Work"
       title="Things I've built"
-      description="A mix of security engineering and interactive frontend — favoring projects with real technical depth. Browse with the arrows, flip the front card to preview it live."
+      description="A mix of security engineering and interactive frontend — favoring projects with real technical depth. Browse with the arrows, tap the front card to preview it live, double-tap to flip back."
     >
       <style>{`
-        .project-peek-card:hover {
-          border-color: rgba(0,212,255,0.4) !important;
+        .project-stack-card:hover {
+          border-color: rgba(0,212,255,0.45) !important;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.4), 0 0 30px rgba(0,212,255,0.12);
         }
 
         .project-flip-outer {
           perspective: 1900px;
+          cursor: pointer;
         }
         .project-flip-inner {
           position: relative;
@@ -695,39 +740,32 @@ export default function ProjectsSection() {
         }
         .project-flip-back {
           transform: rotateY(180deg);
-          cursor: default;
         }
-        .project-flip-back-btn {
+        .project-flip-back-hint {
           position: absolute;
-          top: 16px;
-          right: 16px;
+          top: 12px;
+          right: 14px;
           display: flex;
           align-items: center;
           gap: 6px;
-          padding: 8px 13px;
+          font-size:clamp(8px,1.4vw,10px);
+          padding:clamp(4px,1vw,6px)clamp(8px,2vw,11px);
           border-radius: 999px;
-          background: rgba(0,212,255,0.1);
-          border: 1px solid rgba(0,212,255,0.3);
+          background: rgba(0,212,255,0.08);
+          border: 1px solid rgba(0,212,255,0.22);
           color: ${COLORS.neonBlue};
           font-family: ${FONT.mono};
-          font-size: 10.5px;
-          letter-spacing: 1px;
-          cursor: pointer;
-          transition: background .25s ease, border-color .25s ease, transform .25s ease;
+          font-size: 9.5px;
+          letter-spacing: 0.8px;
+          white-space: nowrap;
+          pointer-events: none;
           z-index: 5;
-        }
-        .project-flip-back-btn:hover {
-          background: rgba(0,212,255,0.2);
-          border-color: rgba(0,212,255,0.55);
-          transform: scale(1.04);
-        }
-        .project-flip-back-btn:active {
-          transform: scale(.94);
+          opacity: 0.85;
         }
 
         .project-nav-btn {
-          width: 48px;
-          height: 48px;
+          width:clamp(36px,7vw,48px);
+          height:clamp(36px,7vw,48px);
           border-radius: 50%;
           background: rgba(10,12,18,.75);
           border: 1px solid rgba(0,212,255,0.25);
@@ -763,36 +801,47 @@ export default function ProjectsSection() {
         }
 
         .project-stack-wrap {
-          position: relative;
-          width: min(640px, 92vw);
-          max-width: 92vw;
-          height: calc(min(460px, 72vh) + 60px);
-          margin: 0 auto;
+            position: relative;
+            width: ${CARD_WIDTH};
+            height: calc(${CARD_HEIGHT} + clamp(24px,4vw,60px));
+            margin: 0 auto;
+            perspective: 1800px;
+            transform-style: preserve-3d;
         }
 
         .project-controls {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 18px;
-          margin-top: 28px;
+          gap:clamp(10px,3vw,18px);
+          margin-top:clamp(16px,4vw,28px);
         }
 
         @media (max-width: 768px) {
-          .project-nav-btn {
-            width: 40px;
-            height: 40px;
-          }
-          .project-flip-back-btn {
-            top: 12px;
-            right: 12px;
+
+          .project-flip-back-hint {
+            top: 10px;
+            right: 10px;
+            font-size: 8.5px;
+            padding: 5px 9px;
           }
           .project-stack-wrap {
-            height: calc(min(460px, 72vh) + 40px);
+            height: calc(${CARD_HEIGHT} + 40px);
           }
           .project-controls {
             gap: 14px;
             margin-top: 20px;
+          }
+        }
+
+        @media (max-width: 380px) {
+
+          .project-stack-wrap {
+            height: calc(${CARD_HEIGHT} + 30px);
+          }
+          .project-controls {
+            gap: 10px;
+            margin-top: 16px;
           }
         }
       `}</style>
@@ -804,32 +853,46 @@ export default function ProjectsSection() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: isMobile ? '0 4px' : '0 12px',
+          padding: isCompact ? '0 2px' : isMobile ? '0 4px' : '0 12px',
         }}
       >
         <div className="project-stack-wrap">
           {PROJECTS.map((p, i) => {
-            const depth = (i - activeIndex + total) % total;
-            if (depth === 0) return null;
+            // Shortest signed distance around the circular deck: negative
+            // = sits behind to the left (previous), positive = behind to
+            // the right (next). Symmetric, so the stack fans out on both
+            // sides of the active card instead of only forward.
+            let diff = (i - activeIndex + total) % total;
+            if (diff > total / 2) diff -= total;
+            if (diff === 0) return null;
+            const depth = Math.abs(diff);
+            const direction = Math.sign(diff);
             return (
-              <PeekCard
+              <StackCard
                 key={p.title}
                 project={p}
                 depth={depth}
+                direction={direction}
+                config={stackConfig}
                 onSelect={() => setActiveIndex(i)}
-                isMobile={isMobile}
+                isCompact={isCompact}
               />
             );
           })}
-          <ActiveFlipCard key={PROJECTS[activeIndex].title} project={PROJECTS[activeIndex]} isMobile={isMobile} />
+          <ActiveFlipCard
+            key={PROJECTS[activeIndex].title}
+            project={PROJECTS[activeIndex]}
+            isMobile={isMobile}
+            isCompact={isCompact}
+          />
         </div>
       </div>
 
       <div className="project-controls">
         <button className="project-nav-btn" onClick={goPrev} aria-label="Previous project">
-          <ChevronLeft size={20} />
+          <ChevronLeft size={isCompact ? 16 : 20} />
         </button>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: isCompact ? 7 : 10 }}>
           {PROJECTS.map((p, i) => (
             <div
               key={p.title}
@@ -839,7 +902,7 @@ export default function ProjectsSection() {
           ))}
         </div>
         <button className="project-nav-btn" onClick={goNext} aria-label="Next project">
-          <ChevronRight size={20} />
+          <ChevronRight size={isCompact ? 16 : 20} />
         </button>
       </div>
     </SectionWrapper>

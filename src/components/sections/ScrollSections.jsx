@@ -24,10 +24,10 @@ export default function ScrollSections() {
       <div style={{ position: 'relative', isolation: 'isolate' }}>
         <div style={{ position: 'relative', zIndex: 1 }}>
           <AboutSection />
-          <CodingProfileSection />
           <ProjectsSection />
           <TechnologiesSection />
           <ExperienceSection />
+          <CodingProfileSection />
           <ExtracurricularsSection />
           <ConnectSection resumeHref="/resume.pdf" />
         </div>
