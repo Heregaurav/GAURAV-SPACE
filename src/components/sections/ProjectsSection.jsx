@@ -6,6 +6,7 @@ import {
   Rocket,
   Boxes,
   Cpu,
+  Play,
   MessageCircle,
   ChevronLeft,
   ChevronRight,
@@ -60,6 +61,26 @@ const PROJECTS = [
     featured: true,
   },
   {
+  icon: Play,
+  title: 'Plavio',
+  tag: 'Full-Stack · Video Streaming',
+  description:
+    'A YouTube-inspired video streaming platform built with the MERN stack,.',
+  stack: [
+    'React',
+    'Node.js',
+    'Express',
+    'MongoDB',
+    'Cloudinary',
+    'JWT',
+  ],
+  links: {
+    code: 'https://github.com/Heregaurav/Plavio',
+    live: 'https://plavio.vercel.app/',
+  },
+  featured: true,
+},
+  {
     icon: Boxes,
     title: 'Guardian AI',
     tag: 'AI · Content Moderation',
@@ -72,6 +93,7 @@ const PROJECTS = [
     },
     featured: true,
   },
+  
   {
     icon: MessageCircle,
     title: 'VOID',
