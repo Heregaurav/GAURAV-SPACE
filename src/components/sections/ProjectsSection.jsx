@@ -109,8 +109,10 @@ const PROJECTS = [
   },
 ];
 
-const CARD_WIDTH = 'clamp(320px, 92vw, 640px)';
-const CARD_HEIGHT = 'clamp(420px, 72vh, 460px)';
+// Pure viewport units, no fixed px floor — the card can never be wider or
+// taller than the screen itself.
+const CARD_WIDTH = 'clamp(160px, 74vw, 620px)';
+const CARD_HEIGHT = 'clamp(260px, 46vh, 460px)';
 
 const cardFaceBase = {
   ...glassPanel,
@@ -125,59 +127,32 @@ const cardFaceBase = {
   overflow: 'hidden',
 };
 
-// Small hook so the stack can thin itself out and use gentler geometry on
-// narrow screens without the layout ever jumping / overflowing.
-function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
-  );
-  useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth <= breakpoint);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [breakpoint]);
-  return isMobile;
-}
-
-// Very small phones (iPhone SE etc.) need one more notch down from the
-// general "isMobile" treatment — tighter paddings, smaller fan offsets.
-function useIsCompact(breakpoint = 380) {
-  const [isCompact, setIsCompact] = useState(
-    typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
-  );
-  useEffect(() => {
-    const onResize = () => setIsCompact(window.innerWidth <= breakpoint);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [breakpoint]);
-  return isCompact;
-}
-
-// Tap = flip to the back. Double-tap (a second tap landing within the
-// window) = flip back to the front. Works for both touch and mouse since
-// it's driven off plain onClick rather than the native dblclick event,
-// which mobile browsers don't reliably synthesize from two taps.
-function useTapToFlip(delay = 350) {
-  const [flipped, setFlipped] = useState(false);
-  const lastTapRef = useRef(0);
-
-  const onCardTap = (e) => {
-    // Ignore taps that originated on an interactive child (links/buttons
-    // already stopPropagation, but this is a safety net).
-    if (e.target.closest('a,button')) return;
-
-    const now = Date.now();
-    const isDoubleTap = now - lastTapRef.current < delay;
-    lastTapRef.current = now;
-
-    if (!flipped) {
-      setFlipped(true);
-    } else if (isDoubleTap) {
-      setFlipped(false);
-    }
+// Single resize listener (throttled with rAF) driving both breakpoints.
+function useViewport() {
+  const getBreakpoints = () => {
+    const width = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    return { isMobile: width <= 640, isCompact: width <= 380 };
   };
 
-  return { flipped, onCardTap };
+  const [breakpoints, setBreakpoints] = useState(getBreakpoints);
+
+  useEffect(() => {
+    let frame = null;
+    const onResize = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        setBreakpoints(getBreakpoints());
+      });
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  return breakpoints;
 }
 
 // True Cover Flow / VisionOS carousel math: cards sit at even angular
@@ -215,6 +190,84 @@ function getStackConfig(isMobile, isCompact) {
   };
 }
 
+/* ------------------------------------------------------------------ */
+/*  Swipe-to-navigate — rebuilt without setPointerCapture and without  */
+/*  a capture-phase click interceptor, since that combination is what  */
+/*  fought the flip card's own click handling last time. Instead, a    */
+/*  swipe just flips a shared ref; the tap-to-flip handler checks that */
+/*  ref itself and ignores its own very next click if a swipe just     */
+/*  happened. No event is ever blocked from reaching its real target,  */
+/*  so ordinary taps/clicks anywhere (flip card, stack cards, nav      */
+/*  buttons, links) behave exactly as before.                         */
+/* ------------------------------------------------------------------ */
+function useCarouselSwipe(onPrev, onNext, justSwipedRef) {
+  const gestureRef = useRef({ pointerId: null, startX: 0, startY: 0 });
+
+  const handlePointerDown = (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    gestureRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+    };
+  };
+
+  const handlePointerUp = (e) => {
+    const gesture = gestureRef.current;
+    if (gesture.pointerId !== e.pointerId) return;
+
+    const deltaX = e.clientX - gesture.startX;
+    const deltaY = e.clientY - gesture.startY;
+    const isSwipe = Math.abs(deltaX) > 42 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
+
+    if (isSwipe) {
+      justSwipedRef.current = true;
+      (deltaX < 0 ? onNext : onPrev)();
+    }
+
+    gestureRef.current = { pointerId: null, startX: 0, startY: 0 };
+  };
+
+  const handlePointerCancel = (e) => {
+    if (gestureRef.current.pointerId === e.pointerId) {
+      gestureRef.current = { pointerId: null, startX: 0, startY: 0 };
+    }
+  };
+
+  return { handlePointerDown, handlePointerUp, handlePointerCancel };
+}
+
+// Tap = flip to the back. Double-tap (a second tap landing within the
+// window) = flip back to the front. If a swipe just happened (tracked
+// via justSwipedRef, shared with useCarouselSwipe above), the very next
+// tap is consumed silently instead of toggling the flip — this is what
+// stops a swipe-ending release from also being read as a flip tap.
+function useTapToFlip(justSwipedRef, delay = 350) {
+  const [flipped, setFlipped] = useState(false);
+  const lastTapRef = useRef(0);
+
+  const onCardTap = (e) => {
+    if (e.target.closest('a,button')) return;
+
+    if (justSwipedRef.current) {
+      justSwipedRef.current = false;
+      return;
+    }
+
+    const now = Date.now();
+    const isDoubleTap = now - lastTapRef.current < delay;
+    lastTapRef.current = now;
+
+    if (!flipped) {
+      setFlipped(true);
+    } else if (isDoubleTap) {
+      setFlipped(false);
+    }
+  };
+
+  return { flipped, onCardTap };
+}
+
 // A card sitting further around the invisible cylinder from the active
 // one — genuinely displaced in both X and Z (not just rotated in place),
 // so it reads as its own floating card rather than a rectangle stacked
@@ -227,15 +280,10 @@ function StackCard({ project, depth, direction, config, onSelect, isCompact }) {
   const i = Math.min(depth, 2);
   const hidden = depth > config.maxPeek;
 
-  // Real angular position around the cylinder — using the actual depth
-  // (not clamped) keeps the motion continuous even for cards past
-  // maxPeek, so nothing jumps when a card crosses the visibility edge.
   const angleDeg = depth * config.angleStep;
   const angleRad = -(angleDeg * Math.PI) / 180;
   const tx = direction * config.radius * Math.sin(angleRad);
   const tz = config.radius * (Math.cos(angleRad) - 1);
-  // Facing the cylinder's center, mirrored by side — this is what keeps
-  // each card tangent to the curve instead of just spinning in place.
   const rotateY = -direction * angleDeg;
   const scale = config.scale[i];
   const opacity = hidden ? 0 : config.opacity[i];
@@ -325,16 +373,13 @@ function StackCard({ project, depth, direction, config, onSelect, isCompact }) {
 // The front-of-stack project — an actual 3D flip card, like the cover of
 // the open notebook. A single tap flips it to the back; a second, quick
 // tap flips it back to the front. The back holds the full write-up,
-// stack, links, and — on every breakpoint, including phones — an
-// embedded live preview.
-function ActiveFlipCard({ project, isMobile, isCompact }) {
+// stack, links, and an embedded live preview.
+function ActiveFlipCard({ project, isMobile, isCompact, justSwipedRef }) {
   const Icon = project.icon;
-  const { flipped, onCardTap } = useTapToFlip();
+  const { flipped, onCardTap } = useTapToFlip(justSwipedRef);
   const hasLive = Boolean(project.links.live) && project.links.live !== '#';
   const [previewLoaded, setPreviewLoaded] = useState(false);
   const [previewTimedOut, setPreviewTimedOut] = useState(false);
-  // Preview now renders on every breakpoint, including phones — the
-  // frame just gets shorter so it still fits the card.
   const showEmbeddedPreview = hasLive;
 
   useEffect(() => {
@@ -345,9 +390,8 @@ function ActiveFlipCard({ project, isMobile, isCompact }) {
     }
     if (!showEmbeddedPreview) return undefined;
     // Some sites block being framed (X-Frame-Options / CSP) and never
-    // signal failure — the iframe just stays blank. Rather than leave the
-    // user staring at "LOADING PREVIEW…" forever, surface a fallback CTA
-    // once it's taken too long, without ripping out the iframe itself.
+    // signal failure — the iframe just stays blank. Surface a fallback
+    // CTA once it's taken too long, without ripping out the iframe.
     const t = setTimeout(() => setPreviewTimedOut(true), 4000);
     return () => clearTimeout(t);
   }, [flipped, showEmbeddedPreview]);
@@ -373,7 +417,7 @@ function ActiveFlipCard({ project, isMobile, isCompact }) {
           className="project-flip-face"
           style={{
             ...cardFaceBase,
-            padding: isCompact ? '18px 16px' : isMobile ? '24px 22px' : '38px 40px',
+            padding: isCompact ? '14px 12px' : isMobile ? '18px 16px' : '38px 40px',
             cursor: 'pointer',
           }}
         >
@@ -411,12 +455,12 @@ function ActiveFlipCard({ project, isMobile, isCompact }) {
           <p
             style={{
               fontFamily: FONT.body,
-              fontSize: 'clamp(12.5px,3.4vw,15px)',
+              fontSize: 'clamp(12px,3.1vw,15px)',
               lineHeight: 1.7,
               color: COLORS.textDim,
               margin: 0,
               display: '-webkit-box',
-              WebkitLineClamp: isCompact ? 2 : 3,
+              WebkitLineClamp: isCompact ? 2 : 2,
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
             }}
@@ -424,9 +468,6 @@ function ActiveFlipCard({ project, isMobile, isCompact }) {
             {project.description}
           </p>
 
-          {/* Flex spacer — everything above sits at the top like the
-              reference image's badge row; everything below is anchored
-              to the bottom edge as one bold caption block. */}
           <div style={{ flexGrow: 1 }} />
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: isCompact ? 8 : 12 }}>
@@ -451,7 +492,7 @@ function ActiveFlipCard({ project, isMobile, isCompact }) {
           <h3
             style={{
               fontFamily: FONT.display,
-              fontSize: 'clamp(34px,7.5vw,58px)',
+              fontSize: 'clamp(28px,6.8vw,58px)',
               fontWeight: 800,
               letterSpacing: '-0.02em',
               lineHeight: 0.95,
@@ -480,16 +521,16 @@ function ActiveFlipCard({ project, isMobile, isCompact }) {
         {/* BACK FACE */}
         <div
           className="project-flip-face project-flip-back"
-          style={{ ...cardFaceBase, padding: isCompact ? '14px 12px' : isMobile ? '20px 18px' : '26px 30px' }}
+          style={{ ...cardFaceBase, padding: isCompact ? '10px 10px' : isMobile ? '14px 14px' : '26px 30px' }}
         >
           <div
             className="project-flip-back-hint"
             onClick={(e) => e.stopPropagation()}
           >
-            <RotateCcw size={13} /> DOUBLE-TAP TO FLIP BACK
+            <RotateCcw size={13} /> DOUBLE-TAP 
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: isCompact ? '2px 0 10px' : isMobile ? '2px 0 12px' : '2px 0 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: isCompact ? '0 0 8px' : isMobile ? '0 0 10px' : '2px 0 14px' }}>
             <div
               style={{
                 width: isCompact ? 30 : isMobile ? 34 : 38,
@@ -520,7 +561,7 @@ function ActiveFlipCard({ project, isMobile, isCompact }) {
               <h4
                 style={{
                   fontFamily: FONT.display,
-                  fontSize: isCompact ? '14px' : isMobile ? '16px' : '18px',
+                  fontSize: isCompact ? '13px' : isMobile ? '15px' : '18px',
                   fontWeight: 800,
                   color: COLORS.textPrimary,
                   margin: '3px 0 0',
@@ -540,7 +581,7 @@ function ActiveFlipCard({ project, isMobile, isCompact }) {
                 overflow: 'hidden',
                 border: `1px solid ${COLORS.line}`,
                 background: 'rgba(255,255,255,0.02)',
-                minHeight: isCompact ? 120 : isMobile ? 150 : 0,
+                minHeight: isCompact ? 100 : isMobile ? 130 : 0,
               }}
             >
               {!previewLoaded && !previewTimedOut && (
@@ -648,7 +689,7 @@ function ActiveFlipCard({ project, isMobile, isCompact }) {
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 18, marginTop: isCompact ? 10 : 14, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 18, marginTop: isCompact ? 8 : 12, flexShrink: 0 }}>
             {project.links.code && (
               <a
                 href={project.links.code}
@@ -699,12 +740,13 @@ function ActiveFlipCard({ project, isMobile, isCompact }) {
 export default function ProjectsSection() {
   const [activeIndex, setActiveIndex] = useState(0);
   const total = PROJECTS.length;
-  const isMobile = useIsMobile();
-  const isCompact = useIsCompact();
+  const { isMobile, isCompact } = useViewport();
   const stackConfig = getStackConfig(isMobile, isCompact);
+  const justSwipedRef = useRef(false);
 
   const goPrev = () => setActiveIndex((i) => (i - 1 + total) % total);
   const goNext = () => setActiveIndex((i) => (i + 1) % total);
+  const swipeHandlers = useCarouselSwipe(goPrev, goNext, justSwipedRef);
 
   return (
     <SectionWrapper
@@ -712,7 +754,7 @@ export default function ProjectsSection() {
       index="02"
       eyebrow="Selected Work"
       title="Things I've built"
-      description="A mix of security engineering and interactive frontend — favoring projects with real technical depth. Browse with the arrows, tap the front card to preview it live, double-tap to flip back."
+      description="A mix of security engineering and interactive frontend — favoring projects with real technical depth. Swipe or use the arrows to browse, tap the front card to preview it live, double-tap to flip back."
     >
       <style>{`
         .project-stack-card:hover {
@@ -748,8 +790,6 @@ export default function ProjectsSection() {
           display: flex;
           align-items: center;
           gap: 6px;
-          font-size:clamp(8px,1.4vw,10px);
-          padding:clamp(4px,1vw,6px)clamp(8px,2vw,11px);
           border-radius: 999px;
           background: rgba(0,212,255,0.08);
           border: 1px solid rgba(0,212,255,0.22);
@@ -757,6 +797,7 @@ export default function ProjectsSection() {
           font-family: ${FONT.mono};
           font-size: 9.5px;
           letter-spacing: 0.8px;
+          padding: clamp(4px,1vw,6px) clamp(8px,2vw,11px);
           white-space: nowrap;
           pointer-events: none;
           z-index: 5;
@@ -801,12 +842,16 @@ export default function ProjectsSection() {
         }
 
         .project-stack-wrap {
-            position: relative;
-            width: ${CARD_WIDTH};
-            height: calc(${CARD_HEIGHT} + clamp(24px,4vw,60px));
-            margin: 0 auto;
-            perspective: 1800px;
-            transform-style: preserve-3d;
+          position: relative;
+          width: min(${CARD_WIDTH}, calc(100vw - 12px));
+          height: min(calc(${CARD_HEIGHT} + clamp(20px,4vw,48px)), calc(100vh - 220px));
+          margin: 0 auto;
+          perspective: 1800px;
+          transform-style: preserve-3d;
+          max-width: 100%;
+          touch-action: pan-y;
+          user-select: none;
+          -webkit-user-select: none;
         }
 
         .project-controls {
@@ -826,7 +871,8 @@ export default function ProjectsSection() {
             padding: 5px 9px;
           }
           .project-stack-wrap {
-            height: calc(${CARD_HEIGHT} + 40px);
+            width: min(${CARD_WIDTH}, calc(100vw - 10px));
+            height: min(calc(${CARD_HEIGHT} + 28px), calc(100vh - 205px));
           }
           .project-controls {
             gap: 14px;
@@ -837,7 +883,8 @@ export default function ProjectsSection() {
         @media (max-width: 380px) {
 
           .project-stack-wrap {
-            height: calc(${CARD_HEIGHT} + 30px);
+            width: min(90vw, ${CARD_WIDTH});
+            height: min(calc(${CARD_HEIGHT} + 20px), calc(100vh - 180px));
           }
           .project-controls {
             gap: 10px;
@@ -853,10 +900,21 @@ export default function ProjectsSection() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: isCompact ? '0 2px' : isMobile ? '0 4px' : '0 12px',
+          padding: isCompact ? '0 10px' : isMobile ? '0 8px' : '0 12px',
+          // Peek cards intentionally extend past the wrap's own bounds —
+          // clip that horizontally so it can't push the whole page into
+          // a horizontal scrollbar on narrow screens. Vertical overflow
+          // (shadows/glow) is left alone.
+          overflowX: 'hidden',
+          overflowY: 'visible',
         }}
       >
-        <div className="project-stack-wrap">
+        <div
+          className="project-stack-wrap"
+          onPointerDown={swipeHandlers.handlePointerDown}
+          onPointerUp={swipeHandlers.handlePointerUp}
+          onPointerCancel={swipeHandlers.handlePointerCancel}
+        >
           {PROJECTS.map((p, i) => {
             // Shortest signed distance around the circular deck: negative
             // = sits behind to the left (previous), positive = behind to
@@ -884,6 +942,7 @@ export default function ProjectsSection() {
             project={PROJECTS[activeIndex]}
             isMobile={isMobile}
             isCompact={isCompact}
+            justSwipedRef={justSwipedRef}
           />
         </div>
       </div>
