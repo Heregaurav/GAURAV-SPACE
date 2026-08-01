@@ -547,17 +547,6 @@ function ActiveFlipCard({ project, isMobile, isCompact, justSwipedRef }) {
               <Icon size={isCompact ? 14 : isMobile ? 16 : 18} color={COLORS.neonBlue} strokeWidth={1.6} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  fontFamily: FONT.mono,
-                  fontSize: '10px',
-                  letterSpacing: '1.5px',
-                  color: COLORS.textFaint,
-                  textTransform: 'uppercase',
-                }}
-              >
-                {project.tag}
-              </div>
               <h4
                 style={{
                   fontFamily: FONT.display,
@@ -640,7 +629,7 @@ function ActiveFlipCard({ project, isMobile, isCompact, justSwipedRef }) {
                       letterSpacing: '1.5px',
                     }}
                   >
-                    <ExternalLink size={13} /> OPEN LIVE SITE
+                    <ExternalLink size={13} /> LIVE SITE
                   </a>
                 </div>
               )}
@@ -727,7 +716,7 @@ function ActiveFlipCard({ project, isMobile, isCompact, justSwipedRef }) {
                   textDecoration: 'none',
                 }}
               >
-                <ExternalLink size={13} /> OPEN LIVE SITE
+                <ExternalLink size={13} />  LIVE SITE
               </a>
             )}
           </div>
