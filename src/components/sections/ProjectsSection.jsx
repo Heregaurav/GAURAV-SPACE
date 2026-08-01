@@ -913,7 +913,7 @@ export default function ProjectsSection() {
             if (diff > total / 2) diff -= total;
             if (diff === 0) return null;
             const depth = Math.abs(diff);
-            const direction = Math.sign(diff);
+            const direction = -Math.sign(diff);
             return (
               <StackCard
                 key={p.title}
