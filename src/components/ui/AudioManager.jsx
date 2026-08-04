@@ -8,7 +8,7 @@ export default function AudioManager({ phase }) {
   const audioRef = useRef(null);
 
   useEffect(() => {
-    const audio = new Audio('/audio/starboy.mp3');
+    const audio = new Audio('/audio/allthestars.mp3');
 
     audio.loop = true;
     audio.volume = volume / 100;
