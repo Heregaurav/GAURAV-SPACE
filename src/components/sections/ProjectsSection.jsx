@@ -5,6 +5,7 @@ import {
   ShieldCheck,
   Rocket,
   Boxes,
+  Brain,
   Cpu,
   Play,
   MessageCircle,
@@ -17,6 +18,27 @@ import SectionWrapper from './SectionWrapper';
 import { COLORS, FONT, glassPanel } from './theme';
 
 const PROJECTS = [
+  {
+  icon: Brain,
+  title: 'Curiosity',
+  tag: 'Full-Stack · AI Learning Assistant',
+  description:
+    'An AI-powered study assistant that transforms topics, notes, and documents into personalized lessons, flashcards, quizzes, and learning paths.',
+  stack: [
+    'React',
+    'TypeScript',
+    'FastAPI',
+    'MongoDB',
+    'LangGraph',
+    'Groq',
+    'Google OAuth',
+  ],
+  links: {
+    code: 'https://github.com/Heregaurav/curiosity',
+    live: 'https://lacuriosity.vercel.app/',
+  },
+  featured: true,
+ },
   {
     icon: ShieldCheck,
     title: 'Tracely AI',
@@ -79,7 +101,7 @@ const PROJECTS = [
     live: 'https://plavio.vercel.app/',
   },
   featured: true,
-},
+  },
   {
     icon: Boxes,
     title: 'Guardian AI',

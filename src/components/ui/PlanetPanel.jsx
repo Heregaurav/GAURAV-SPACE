@@ -18,6 +18,12 @@ export const PLANET_DATA = {
     ],
     projects: [
       {
+        name: 'Curiosity',
+        desc: 'AI-powered study assistant that turns topics, notes, and documents into personalized lessons, quizzes, and flashcards.',
+        tech: ['React', 'FastAPI', 'GenAI', 'Agentic AI'],
+        link: 'https://lacuriosity.vercel.app/',
+      },
+      {
         name: 'Inkwell',
         desc: 'AI-powered platform for readers and writers',
         tech: ['React', 'Node.js', 'MongoDB'],
